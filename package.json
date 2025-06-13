@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "scripts": {
+    "download": "node download_twse.js",
+    "ma": "node ma_strategy.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}
