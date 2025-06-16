@@ -2,7 +2,8 @@
   "type": "module",
   "scripts": {
     "download": "node download_twse.js",
-    "ma": "node ma_strategy.js"
+    "ma": "node ma_strategy.js",
+    "test": "node cli.test.js"
   },
   "dependencies": {
     "sqlite3": "^5.1.7"
