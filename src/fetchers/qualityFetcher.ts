@@ -1,168 +1,398 @@
-import { ApiClient } from '../services/apiClient.js';
-import { DatabaseManager } from '../utils/databaseManager.js';
-import { ErrorHandler } from '../utils/errorHandler.js';
-import { QualityData, CompanyInfo } from '../types/index.js';
-import { TWSE_ENDPOINTS } from '../constants/index.js';
+import { FinMindClient, BalanceSheetData, FinancialStatementsData } from '../utils/finmindClient.js';
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
 
+export interface QualityMetrics {
+  stock_id: string;
+  date: string;
+  roe?: number;          // 股東權益報酬率
+  roa?: number;          // 資產報酬率
+  gross_margin?: number; // 毛利率
+  operating_margin?: number; // 營業利益率
+  net_margin?: number;   // 淨利率
+  debt_ratio?: number;   // 負債比率
+  current_ratio?: number; // 流動比率
+  eps?: number;          // 每股盈餘
+}
+
+/**
+ * 品質指標資料擷取器
+ * 使用 FinMind API 獲取財務報表並計算品質指標
+ */
 export class QualityFetcher {
-  private apiClient: ApiClient;
-  private dbManager: DatabaseManager;
+  private client: FinMindClient;
+  private db: Database.Database | null = null;
+  private dbPath: string;
 
-  constructor() {
-    this.apiClient = new ApiClient();
-    this.dbManager = new DatabaseManager();
+  constructor(finmindToken?: string) {
+    this.client = new FinMindClient(finmindToken);
+    this.dbPath = path.join(process.cwd(), 'data', 'quality.db');
   }
 
-  async fetchQualityData(): Promise<QualityData[]> {
-    try {
-      console.log('開始抓取品質資料...');
+  async initialize(): Promise<void> {
+    this.getDb();
+  }
 
-      // Note: TWSE OpenAPI quality endpoints may not have the expected format
-      console.warn('Warning: 品質資料API端點格式可能不完整，跳過品質資料抓取');
-      return [];
+  private getDb(): Database.Database {
+    if (!this.db) {
+      // 確保資料夾存在
+      const dir = path.dirname(this.dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
 
-      // TODO: When proper API endpoints are available, implement:
-      // - 獲取公司基本資訊
-      // - 獲取財務資料
-      // - 合併資料並儲存到資料庫
-
-    } catch (error) {
-      await ErrorHandler.logError(error as Error, 'QualityFetcher.fetchQualityData');
-      console.warn('品質資料抓取失敗，跳過此模組');
-      return [];
+      this.db = new Database(this.dbPath);
+      this.initializeDatabase();
     }
+    return this.db;
   }
 
-  private async fetchCompanyInfo(): Promise<CompanyInfo[]> {
-    const endpoint = TWSE_ENDPOINTS.COMPANY_INFO;
-    const response = await this.apiClient.get(endpoint) as any[];
+  private initializeDatabase(): void {
+    const db = this.getDb();
 
-    // Check if response is array (new JSON format)
-    if (!Array.isArray(response)) {
-      throw new Error('公司資訊格式錯誤: API回傳格式不正確');
-    }
-
-    // Check if data contains expected company fields
-    if (response.length > 0 && !response[0]['公司代號']) {
-      console.warn('Warning: API回傳資料格式與預期不符，跳過品質資料抓取');
-      return [];
-    }
-
-    return response.map((item: any) => ({
-      symbol: item['公司代號'] || item.Code,
-      name: item['公司名稱'] || item.Name,
-      market: item.Market,
-      industry: item.Industry,
-      listingDate: item.ListingDate
-    }));
-  }
-
-  private async fetchFinancialData(): Promise<any[]> {
-    // 這裡會抓取資產品質相關的財務資料
-    // 包括資產負債表、現金流量表等
-    const endpoint = TWSE_ENDPOINTS.FINANCIAL_STATEMENTS;
-    const response = await this.apiClient.get(endpoint) as any;
-
-    if (!response.data || !Array.isArray(response.data)) {
-      throw new Error('財務資料格式錯誤');
-    }
-
-    return response.data;
-  }
-
-  private mergeQualityData(companyInfo: CompanyInfo[], financialData: any[]): QualityData[] {
-    const qualityData: QualityData[] = [];
-
-    for (const company of companyInfo) {
-      const financial = financialData.find(f => f.symbol === company.symbol);
-      if (!financial) continue;
-
-      // 計算品質指標
-      const qualityMetrics = this.calculateQualityMetrics(financial);
-
-      qualityData.push({
-        symbol: company.symbol,
-        name: company.name,
-        ...qualityMetrics,
-        fetchedAt: new Date()
-      });
-    }
-
-    return qualityData;
-  }
-
-  private calculateQualityMetrics(financial: any): Omit<QualityData, 'symbol' | 'name' | 'fetchedAt'> {
-    // 計算品質相關指標
-    const totalAssets = financial.totalAssets || 0;
-    const totalLiabilities = financial.totalLiabilities || 0;
-    const totalEquity = financial.totalEquity || 0;
-    const longTermDebt = financial.longTermDebt || 0;
-    const currentRatio = financial.currentAssets / (financial.currentLiabilities || 1);
-    const quickRatio = (financial.currentAssets - financial.inventory) / (financial.currentLiabilities || 1);
-    const operatingCashFlow = financial.operatingCashFlow || 0;
-    const netIncome = financial.netIncome || 0;
-
-    return {
-      // 負債比率 (越低越好)
-      debtToEquity: totalLiabilities / (totalEquity || 1),
-
-      // 流動比率 (>1.5 較佳)
-      currentRatio: currentRatio,
-
-      // 速動比率 (>1.0 較佳)
-      quickRatio: quickRatio,
-
-      // 長期負債比率 (越低越好)
-      longTermDebtRatio: longTermDebt / (totalAssets || 1),
-
-      // 營運現金流量對淨利比 (>1.2 較佳)
-      operatingCashFlowToNetIncome: operatingCashFlow / (netIncome || 1),
-
-      // 資產報酬率 (越高越好)
-      returnOnAssets: netIncome / (totalAssets || 1),
-
-      // 權益報酬率 (越高越好)
-      returnOnEquity: netIncome / (totalEquity || 1),
-
-      // 毛利率
-      grossMargin: financial.grossMargin || 0,
-
-      // 營業利益率
-      operatingMargin: financial.operatingMargin || 0,
-
-      // 淨利率
-      netMargin: financial.netMargin || 0
-    };
-  }
-
-  private async saveToDatabase(qualityData: QualityData[]): Promise<void> {
-    const db = this.dbManager.getDatabase();
-
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO quality_data (
-        symbol, name, debt_to_equity, current_ratio, quick_ratio,
-        long_term_debt_ratio, operating_cash_flow_to_net_income,
-        return_on_assets, return_on_equity, gross_margin,
-        operating_margin, net_margin, fetched_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS quality_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        stock_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        roe REAL,
+        roa REAL,
+        gross_margin REAL,
+        operating_margin REAL,
+        net_margin REAL,
+        debt_ratio REAL,
+        current_ratio REAL,
+        eps REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(stock_id, date)
+      )
     `);
 
-    for (const data of qualityData) {
-      stmt.run(
-        data.symbol,
-        data.name,
-        data.debtToEquity,
-        data.currentRatio,
-        data.quickRatio,
-        data.longTermDebtRatio,
-        data.operatingCashFlowToNetIncome,
-        data.returnOnAssets,
-        data.returnOnEquity,
-        data.grossMargin,
-        data.operatingMargin,
-        data.netMargin,
-        data.fetchedAt.toISOString()
+    console.log('品質指標資料庫初始化完成');
+  }
+
+  /**
+   * 獲取並計算品質指標
+   */
+  async fetchQualityMetrics(
+    stockId: string,
+    startDate: string,
+    endDate?: string
+  ): Promise<QualityMetrics[]> {
+    try {
+      console.log(`📊 抓取品質指標: ${stockId} (${startDate} ~ ${endDate || '今日'})`);
+
+      // 並行獲取財務報表和資產負債表
+      const [financialData, balanceSheetData] = await Promise.all([
+        this.client.getFinancialStatements(stockId, startDate, endDate),
+        this.client.getBalanceSheet(stockId, startDate, endDate),
+      ]);
+
+      // 計算品質指標
+      const qualityMetrics = this.calculateQualityMetrics(
+        financialData,
+        balanceSheetData,
+        stockId
       );
+
+      // 儲存到資料庫
+      this.saveQualityMetrics(qualityMetrics);
+
+      console.log(`✅ 成功計算 ${qualityMetrics.length} 期品質指標`);
+      return qualityMetrics;
+
+    } catch (error) {
+      console.error(`❌ 抓取品質指標失敗 (${stockId}):`, error);
+      return [];
+    }
+  }
+
+  /**
+   * 計算各項品質指標
+   */
+  private calculateQualityMetrics(
+    financialData: FinancialStatementsData[],
+    balanceSheetData: BalanceSheetData[],
+    stockId: string
+  ): QualityMetrics[] {
+    // 按日期分組
+    const financialByDate = this.groupByDate(financialData);
+    const balanceSheetByDate = this.groupByDate(balanceSheetData);
+
+    // 合併所有日期
+    const allDates = new Set([
+      ...Object.keys(financialByDate),
+      ...Object.keys(balanceSheetByDate)
+    ]);
+
+    const results: QualityMetrics[] = [];
+
+    for (const date of allDates) {
+      const financial = financialByDate[date] || [];
+      const balanceSheet = balanceSheetByDate[date] || [];
+
+      const metrics = this.calculateSinglePeriodMetrics(
+        financial,
+        balanceSheet,
+        stockId,
+        date
+      );
+
+      if (metrics) {
+        results.push(metrics);
+      }
+    }
+
+    return results.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  /**
+   * 計算單一期間的品質指標
+   */
+  private calculateSinglePeriodMetrics(
+    financial: FinancialStatementsData[],
+    balanceSheet: BalanceSheetData[],
+    stockId: string,
+    date: string
+  ): QualityMetrics | null {
+    const metrics: QualityMetrics = {
+      stock_id: stockId,
+      date: date
+    };
+
+    // 從損益表取得項目
+    const revenue = this.findValue(financial, ['營業收入', '營收', '總收入']);
+    const grossProfit = this.findValue(financial, ['毛利', '毛利益']);
+    const operatingIncome = this.findValue(financial, ['營業利益', '營業收益']);
+    const netIncome = this.findValue(financial, ['本期淨利', '淨利', '稅後淨利']);
+    const eps = this.findValue(financial, ['每股盈餘', '基本每股盈餘', 'EPS']);
+
+    // 從資產負債表取得項目
+    const totalAssets = this.findValue(balanceSheet, ['資產總額', '總資產']);
+    const totalLiabilities = this.findValue(balanceSheet, ['負債總額', '總負債']);
+    const totalEquity = this.findValue(balanceSheet, ['權益總額', '總權益', '股東權益']);
+    const currentAssets = this.findValue(balanceSheet, ['流動資產']);
+    const currentLiabilities = this.findValue(balanceSheet, ['流動負債']);
+
+    // 計算各項比率
+    if (revenue && revenue > 0) {
+      if (grossProfit) {
+        metrics.gross_margin = (grossProfit / revenue) * 100;
+      }
+      if (operatingIncome) {
+        metrics.operating_margin = (operatingIncome / revenue) * 100;
+      }
+      if (netIncome) {
+        metrics.net_margin = (netIncome / revenue) * 100;
+      }
+    }
+
+    if (totalAssets && totalAssets > 0) {
+      if (netIncome) {
+        metrics.roa = (netIncome / totalAssets) * 100;
+      }
+      if (totalLiabilities) {
+        metrics.debt_ratio = (totalLiabilities / totalAssets) * 100;
+      }
+    }
+
+    if (totalEquity && totalEquity > 0 && netIncome) {
+      metrics.roe = (netIncome / totalEquity) * 100;
+    }
+
+    if (currentAssets && currentLiabilities && currentLiabilities > 0) {
+      metrics.current_ratio = currentAssets / currentLiabilities;
+    }
+
+    if (eps) {
+      metrics.eps = eps;
+    }
+
+    // 至少要有一個指標才回傳
+    const hasAnyMetric = Object.keys(metrics).some(key =>
+      key !== 'stock_id' && key !== 'date' && metrics[key as keyof QualityMetrics] !== undefined
+    );
+
+    return hasAnyMetric ? metrics : null;
+  }
+
+  /**
+   * 從財務資料中尋找特定項目的值
+   */
+  private findValue(
+    data: (FinancialStatementsData | BalanceSheetData)[],
+    searchTerms: string[]
+  ): number | undefined {
+    for (const term of searchTerms) {
+      const item = data.find(d =>
+        d.origin_name.includes(term) ||
+        d.origin_name === term
+      );
+      if (item && item.value !== 0) {
+        return item.value;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * 按日期分組資料
+   */
+  private groupByDate<T extends { date: string }>(
+    data: T[]
+  ): Record<string, T[]> {
+    return data.reduce((acc, item) => {
+      if (!acc[item.date]) {
+        acc[item.date] = [];
+      }
+      acc[item.date]!.push(item);
+      return acc;
+    }, {} as Record<string, T[]>);
+  }
+
+  /**
+   * 儲存品質指標到資料庫
+   */
+  private saveQualityMetrics(metrics: QualityMetrics[]): void {
+    if (metrics.length === 0) return;
+
+    const db = this.getDb();
+    const stmt = db.prepare(
+      `INSERT OR REPLACE INTO quality_metrics
+       (stock_id, date, roe, roa, gross_margin, operating_margin, net_margin, debt_ratio, current_ratio, eps)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+
+    for (const item of metrics) {
+      try {
+        stmt.run(
+          item.stock_id,
+          item.date,
+          item.roe,
+          item.roa,
+          item.gross_margin,
+          item.operating_margin,
+          item.net_margin,
+          item.debt_ratio,
+          item.current_ratio,
+          item.eps
+        );
+      } catch (error) {
+        console.error(`儲存品質指標失敗:`, error);
+      }
+    }
+  }
+
+  /**
+   * 從資料庫讀取品質指標
+   */
+  getQualityMetrics(stockId: string, limit: number = 20): QualityMetrics[] {
+    const db = this.getDb();
+    const stmt = db.prepare(
+      `SELECT * FROM quality_metrics
+       WHERE stock_id = ?
+       ORDER BY date DESC
+       LIMIT ?`
+    );
+
+    return stmt.all(stockId, limit) as QualityMetrics[];
+  }
+
+  /**
+   * 計算品質分數（綜合評價）
+   */
+  calculateQualityScore(metrics: QualityMetrics): number {
+    let score = 0;
+    let factors = 0;
+
+    // ROE 評分 (權重: 25%)
+    if (metrics.roe !== undefined) {
+      if (metrics.roe >= 15) score += 25;
+      else if (metrics.roe >= 10) score += 20;
+      else if (metrics.roe >= 5) score += 15;
+      else if (metrics.roe >= 0) score += 10;
+      factors++;
+    }
+
+    // 毛利率評分 (權重: 20%)
+    if (metrics.gross_margin !== undefined) {
+      if (metrics.gross_margin >= 30) score += 20;
+      else if (metrics.gross_margin >= 20) score += 15;
+      else if (metrics.gross_margin >= 10) score += 10;
+      else if (metrics.gross_margin >= 0) score += 5;
+      factors++;
+    }
+
+    // 營業利益率評分 (權重: 20%)
+    if (metrics.operating_margin !== undefined) {
+      if (metrics.operating_margin >= 15) score += 20;
+      else if (metrics.operating_margin >= 10) score += 15;
+      else if (metrics.operating_margin >= 5) score += 10;
+      else if (metrics.operating_margin >= 0) score += 5;
+      factors++;
+    }
+
+    // 負債比率評分 (權重: 15%, 越低越好)
+    if (metrics.debt_ratio !== undefined) {
+      if (metrics.debt_ratio <= 30) score += 15;
+      else if (metrics.debt_ratio <= 50) score += 12;
+      else if (metrics.debt_ratio <= 70) score += 8;
+      else score += 3;
+      factors++;
+    }
+
+    // 流動比率評分 (權重: 10%)
+    if (metrics.current_ratio !== undefined) {
+      if (metrics.current_ratio >= 2) score += 10;
+      else if (metrics.current_ratio >= 1.5) score += 8;
+      else if (metrics.current_ratio >= 1) score += 5;
+      else score += 2;
+      factors++;
+    }
+
+    // EPS 成長評分 (權重: 10%)
+    if (metrics.eps !== undefined && metrics.eps > 0) {
+      score += 10;
+      factors++;
+    }
+
+    return factors > 0 ? score : 0;
+  }
+
+  /**
+   * 向後相容性方法 - 使用預設參數呼叫新的方法
+   * @deprecated 使用 fetchQualityMetrics 方法替代
+   */
+  async fetchQualityData(): Promise<QualityMetrics[]> {
+    console.log('⚠️  使用已棄用的 fetchQualityData 方法，建議改用 fetchQualityMetrics');
+
+    // 使用台積電作為測試股票，抓取最近一年的資料
+    const testStocks = ['2330', '2317', '2454'];
+    const startDate = '2023-01-01';
+    const endDate = '2023-12-31';
+
+    const allData: QualityMetrics[] = [];
+
+    for (const stockId of testStocks) {
+      try {
+        const metrics = await this.fetchQualityMetrics(stockId, startDate, endDate);
+        allData.push(...metrics);
+      } catch (error) {
+        console.error(`抓取 ${stockId} 品質資料失敗:`, error);
+      }
+    }
+
+    return allData;
+  }
+
+  /**
+   * 關閉資料庫連線
+   */
+  close(): void {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
     }
   }
 }

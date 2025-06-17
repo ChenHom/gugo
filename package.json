@@ -19,6 +19,7 @@
     "update": "tsx src/cli/update.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
+    "test:finmind": "npm run build && node scripts/test-finmind.js",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit"

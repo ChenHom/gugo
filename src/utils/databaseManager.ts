@@ -36,6 +36,14 @@ export class DatabaseManager {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
+      // 創建 migration 記錄表
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS migration_history (
+          filename TEXT PRIMARY KEY,
+          executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       const migrationsDir = 'migrations';
       const files = await fs.readdir(migrationsDir);
       const migrationFiles = files
@@ -43,9 +51,26 @@ export class DatabaseManager {
         .sort();
 
       for (const file of migrationFiles) {
+        // 檢查是否已執行過此 migration
+        const executed = this.db.prepare('SELECT filename FROM migration_history WHERE filename = ?').get(file);
+        if (executed) {
+          console.log(`⏭️  Migration ${file} already executed, skipping...`);
+          continue;
+        }
+
+        console.log(`🚀 Executing migration: ${file}`);
         const filePath = path.join(migrationsDir, file);
         const sql = await fs.readFile(filePath, 'utf-8');
-        this.db.exec(sql);
+
+        try {
+          this.db.exec(sql);
+          // 記錄成功執行的 migration
+          this.db.prepare('INSERT INTO migration_history (filename) VALUES (?)').run(file);
+          console.log(`✅ Migration ${file} completed successfully`);
+        } catch (migrationError) {
+          console.error(`❌ Migration ${file} failed:`, migrationError);
+          throw migrationError;
+        }
       }
     } catch (error) {
       await ErrorHandler.logError(error as Error, 'DatabaseManager.runMigrations');

@@ -65,14 +65,6 @@ export class GrowthFetcher {
   }
 
   /**
-   * 初始化資料庫連接
-   */
-  async initialize(): Promise<void> {
-    this.getDb();
-    console.log('成長指標資料庫初始化完成');
-  }
-
-  /**
    * 抓取月營收成長資料
    */
   async fetchRevenueGrowth(
@@ -229,96 +221,6 @@ export class GrowthFetcher {
     }
 
     return results;
-  }
-
-  /**
-   * CLI 相容性方法 - 抓取營收資料
-   */
-  async fetchRevenueData(options: {
-    stockNos?: string[];
-    useCache?: boolean;
-  } = {}): Promise<{ success: boolean; data?: GrowthMetrics[]; error?: string }> {
-    try {
-      const stockIds: string[] = options.stockNos || ['2330', '2317', '2454']; // 預設股票
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-      const allData: GrowthMetrics[] = [];
-
-      for (const stockId of stockIds) {
-        const metrics = await this.fetchRevenueGrowth(stockId, startDate, endDate);
-        allData.push(...metrics);
-
-        // 避免 API 限制
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-
-      return { success: true, data: allData };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * CLI 相容性方法 - 抓取 EPS 資料
-   */
-  async fetchEpsData(options: {
-    stockNos?: string[];
-    useCache?: boolean;
-  } = {}): Promise<{ success: boolean; data?: GrowthMetrics[]; error?: string }> {
-    try {
-      const stockIds = options.stockNos || ['2330', '2317', '2454'];
-      // EPS 資料通常季報，這裡簡化處理
-      console.log('⚠️  EPS 成長資料需要整合財報 API，目前回傳空資料');
-      return { success: true, data: [] };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * 取得已儲存的成長資料
-   */
-  async getStoredGrowthData(
-    stockId?: string,
-    limit?: number
-  ): Promise<Array<{
-    stockNo: string;
-    month: string;
-    revenue: number;
-    yoy: number;
-    eps?: number;
-  }>> {
-    const db = this.getDb();
-
-    let sql = `
-      SELECT stock_id as stockNo, month, revenue, yoy, eps
-      FROM growth_metrics
-      WHERE 1=1
-    `;
-
-    const params: any[] = [];
-
-    if (stockId) {
-      sql += ' AND stock_id = ?';
-      params.push(stockId);
-    }
-
-    sql += ' ORDER BY month DESC';
-
-    if (limit) {
-      sql += ' LIMIT ?';
-      params.push(limit);
-    }
-
-    const stmt = db.prepare(sql);
-    return stmt.all(...params) as any[];
   }
 
   /**

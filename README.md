@@ -81,6 +81,22 @@ npm run fetch-all
 
 ## 🎮 使用指南
 
+### 初次設定
+
+1. **設定 FinMind API Token** (建議)：
+   ```bash
+   # 複製環境變數範例檔案
+   cp .env.example .env
+
+   # 編輯 .env 檔案設定您的 Token
+   # FINMIND_TOKEN=your_token_here
+   ```
+
+2. **測試 FinMind API 連線**：
+   ```bash
+   npm run test:finmind
+   ```
+
 ### 資料抓取
 
 ```bash
@@ -89,9 +105,9 @@ npm run fetch-all
 
 # 抓取特定因子資料
 npm run fetch-valuation    # 估值資料
-npm run fetch-growth        # 成長資料
+npm run fetch-growth        # 成長資料（需 FinMind Token）
 npm run fetch-quality       # 品質資料
-npm run fetch-fund-flow     # 資金流資料
+npm run fetch-fund-flow     # 資金流資料（需 FinMind Token）
 npm run fetch-momentum      # 動能資料
 ```
 
@@ -289,29 +305,68 @@ RATE_LIMIT = {
 - 估值資料端點：`/v1/exchangeReport/BWIBBU_d` 可正常使用
 - 資料格式解析：已適配新的 JSON 物件格式
 
-⚠️ **已知限制:**
-- **月營收資料**: TWSE OpenAPI 目前無法提供月營收數據，`t187ap02_M` 端點無效
-- **EPS資料**: `t51apim03_A` 端點目前無法正常使用
-- **資金流資料**: 需要從其他來源獲取外資投信買賣超資料
+⚠️ **資料來源狀態更新:**
 
-### 資料來源狀態
+我們已經實作了 FinMind API 作為替代資料來源，以解決 TWSE OpenAPI 的限制：
 
-| 資料類型 | TWSE OpenAPI 狀態 | 替代方案 |
-|---------|------------------|----------|
-| 股價資料 | ✅ 可用 | - |
-| 估值指標 (PE/PB) | ✅ 可用 | - |
-| 月營收 | ❌ 端點無效 | 考慮使用公開資訊觀測站 |
-| EPS 資料 | ❌ 端點無效 | 需要手動獲取或其他 API |
-| 財務指標 | ⚠️ 待測試 | - |
-| 資金流向 | ❌ 端點無效 | 需要其他資料源 |
+### 資料來源對應表
+
+| 需求           | 原端點（已失效）                                      | **新的替代來源**                                                                              | 實作狀態 | 備註                                        |
+| ------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------- | ------ | ----------------------------------------- |
+| **月營收**      | `openapi.twse.com.tw/v1/opendata/t187ap02_M`  | **FinMind — `TaiwanStockMonthRevenue`** ✅                       | ✅ 已實作 | 需要 FinMind Token，免費註冊即可用，速率限制 30 req/min           |
+| **EPS / 財報** | `openapi.twse.com.tw/v1/opendata/t51apim03_A` | **FinMind — `FinancialStatements`** ✅                 | ✅ 已實作 | 自動解析每股盈餘欄位並計算季增率                    |
+| **三大法人買賣超**  | —                                             | **FinMind — `InstitutionalInvestorsBuySell`** ✅ | ✅ 已實作 | 提供外資、投信、自營商買賣超資料 |
+
+### FinMind API 設定
+
+1. **註冊 FinMind 帳號**: 至 [FinMind](https://finmindtrade.com/) 免費註冊
+2. **取得 API Token**: 登入後在個人資料頁面取得 token
+3. **設定 Token** (推薦使用環境變數):
+
+   **方法一：使用環境變數**
+   ```bash
+   # 複製範例環境變數檔案
+   cp .env.example .env
+
+   # 編輯 .env 檔案，設定您的 FinMind Token
+   FINMIND_TOKEN=your_finmind_api_token_here
+   ```
+
+   **方法二：直接設定環境變數**
+   ```bash
+   export FINMIND_TOKEN=your_token_here
+   ```
+
+   **方法三：程式碼中直接傳入**
+   ```typescript
+   // 在初始化 fetcher 時傳入 token
+   const growthFetcher = new GrowthFetcher('your_token_here');
+   ```
+
+4. **使用注意事項**:
+   - 免費版本有速率限制：30 requests/分鐘
+   - 建議使用環境變數以避免 Token 洩露
+   - Token 會自動從環境變數 `FINMIND_TOKEN` 讀取
+
+### 目前功能狀態
+
+| 資料類型 | TWSE OpenAPI 狀態 | FinMind API 狀態 | 實際可用性 |
+|---------|------------------|----------|----------|
+| 股價資料 | ✅ 可用 | - | ✅ 可直接使用 |
+| 估值指標 (PE/PB) | ✅ 可用 | - | ✅ 可直接使用 |
+| 月營收 | ❌ 端點無效 | ✅ 已實作 | ✅ 需 FinMind Token |
+| EPS 資料 | ❌ 端點無效 | ✅ 已實作 | ✅ 需 FinMind Token |
+| 財務指標 | ⚠️ 待測試 | - | ⚠️ 部分可用 |
+| 資金流向 | ❌ 端點無效 | ✅ 已實作 | ✅ 需 FinMind Token |
 
 ### 建議的解決方案
 
 如果您需要完整的多因子分析，建議：
-1. 使用現有可用的估值和價格資料進行基礎分析
-2. 手動補充月營收和 EPS 資料
-3. 考慮使用付費金融 API 服務
-4. 等待 TWSE OpenAPI 恢復相關端點
+
+1. 設定 FinMind Token 以啟用月營收、EPS、資金流等資料
+2. 使用現有可用的估值和價格資料進行基礎分析
+3. 考慮升級 FinMind 付費版本以提高速率限制
+4. 定期更新資料以保持分析準確性
 
 ## 📝 開發指南
 

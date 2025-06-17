@@ -1,7 +1,28 @@
 #!/usr/bin/env node
 
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 import { FundFlowFetcher } from '../fetchers/fundFlowFetcher.js';
 import { DatabaseManager } from '../utils/databaseManager.js';
+
+const argv = yargs(hideBin(process.argv))
+  .option('stocks', {
+    alias: 's',
+    type: 'string',
+    description: 'Comma-separated stock codes (e.g., 2330,2454)',
+  })
+  .option('start-date', {
+    type: 'string',
+    description: 'Start date (YYYY-MM-DD)',
+    default: '2024-01-01',
+  })
+  .option('end-date', {
+    type: 'string',
+    description: 'End date (YYYY-MM-DD)',
+    default: new Date().toISOString().split('T')[0],
+  })
+  .help()
+  .parseSync();
 
 async function main() {
   const dbManager = new DatabaseManager();
@@ -12,18 +33,25 @@ async function main() {
 
     console.log('開始抓取資金流資料...');
     const fetcher = new FundFlowFetcher();
-    const fundFlowData = await fetcher.fetchFundFlowData();
 
-    console.log(`✅ 成功抓取 ${fundFlowData.length} 筆資金流資料`);
+    const stockIds = argv.stocks ? argv.stocks.split(',').map(s => s.trim()) : ['2330', '2317', '2454'];
+    const startDate = argv['start-date'] || '2024-01-01';
+    const endDate = argv['end-date'] || new Date().toISOString().split('T')[0];
 
-    // 顯示部分樣本資料
-    if (fundFlowData.length > 0) {
-      console.log('\n💰 資金流資料樣本:');
-      const sample = fundFlowData.slice(0, 5);
-      sample.forEach(data => {
-        console.log(`${data.stockNo}: 外資=${data.foreignNet}, 投信=${data.invTrustNet}, 持股比=${data.holdingRatio}%`);
-      });
+    let totalRecords = 0;
+
+    for (const stockId of stockIds) {
+      console.log(`💰 處理股票: ${stockId}`);
+      const fundFlowData = await fetcher.fetchFundFlowData(stockId, startDate, endDate);
+      totalRecords += fundFlowData.length;
+
+      console.log(`✅ ${stockId} 成功抓取 ${fundFlowData.length} 筆資金流資料`);
+
+      // 避免 API 限制
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
+
+    console.log(`✅ 總計成功抓取 ${totalRecords} 筆資金流資料`);
 
   } catch (error) {
     console.error('❌ 抓取資金流資料失敗:', error);

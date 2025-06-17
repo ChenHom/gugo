@@ -136,3 +136,9 @@ dist
 .pnp.*
 
 data/
+
+# FinMind API 快取
+cache/
+
+# 環境變數檔案
+.env
