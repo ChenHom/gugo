@@ -1,11 +1,46 @@
 {
+  "name": "taiwan-stock-screener",
+  "version": "1.0.0",
+  "description": "Taiwan High-Potential Stock Screener",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
-    "download": "node download_twse.js",
-    "ma": "node ma_strategy.js",
-    "test": "node cli.test.js"
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "fetch-all": "tsx src/cli/fetch-all.ts",
+    "fetch-valuation": "tsx src/cli/fetch-valuation.ts",
+    "fetch-growth": "tsx src/cli/fetch-growth.ts",
+    "fetch-quality": "tsx src/cli/fetch-quality.ts",
+    "fetch-fund-flow": "tsx src/cli/fetch-fund-flow.ts",
+    "fetch-momentum": "tsx src/cli/fetch-momentum.ts",
+    "rank": "tsx src/cli/rank.ts",
+    "explain": "tsx src/cli/explain.ts",
+    "visualize": "tsx src/cli/visualize.ts",
+    "update": "tsx src/cli/update.ts",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "sqlite3": "^5.1.7"
+    "better-sqlite3": "^9.2.2",
+    "node-fetch": "^3.3.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.10.5",
+    "@types/yargs": "^17.0.32",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "@vitest/coverage-v8": "^1.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
