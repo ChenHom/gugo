@@ -1,14 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 let fetchMock: any;
-vi.mock('node-fetch', () => ({
-  default: (...args: any[]) => fetchMock(...args),
-}));
+vi.mock('node-fetch', async () => {
+  const actual = await vi.importActual<any>('node-fetch');
+  return {
+    ...actual,
+    default: (...args: any[]) => fetchMock(...args),
+  };
+});
 
 import { FinMindClient } from '../src/utils/finmindClient.js';
+import { defaultCache } from '../src/utils/simpleCache.js';
 
 describe('FinMindClient request generation', () => {
   beforeEach(() => {
+    defaultCache.clear();
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ status: 200, msg: 'ok', data: [] }),
