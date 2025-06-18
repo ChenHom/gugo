@@ -1,172 +1,163 @@
 ---
 applyTo: '**'
 ---
-# 🇹🇼 Taiwan High‑Potential Stock Screener — **Base Specification**
+# 🇹🇼 Taiwan High-Potential Stock Screener — **Base Specification v0.3**
 
-> **Persistent spec** to be imported in every subsequent task prompt. Keep this file unchanged except when the core business logic itself changes.
-
----
-
-## 0  Quick Summary
-
-Build a TypeScript (>=5) / Node 18 tool that ranks Taiwan‑listed equities by a composite score:
-
-```
-TotalScore = 40 % Valuation + 25 % Growth + 15 % Quality + 10 % Fund‑flow + 10 % Momentum
-```
-
-Data come mainly from **TWSE OpenAPI** and are stored in **SQLite**. The tool must expose a CLI (`fetch-*`, `rank`, `explain`) and pass the acceptance tests listed below.
+> *Persistent spec — every future task prompt must `import` this file unmodified unless the core business logic changes.*
 
 ---
 
-## 1  Roles
+## 0  Quick Summary
+
+Build a **TypeScript 5 / Node 22** CLI that ranks Taiwan-listed equities by:
+
+```
+
+TotalScore = 40 % Valuation
+\+ 25 % Growth
+\+ 15 % Quality
+\+ 10 % Fund-flow
+\+ 10 % Momentum
+
+````
+
+* Data fetched mainly from **TWSE OpenAPI** / FinMind / Goodinfo.
+* Stored in **SQLite (sql.js + WASM, file-backed)**.
+* Must expose CLI commands (`fetch-*`, `fetch-all`, `rank`, `explain`) and pass the acceptance tests (§8).
+
+---
+
+## 1  Roles
 
 ```txt
 SYSTEM   : Senior TypeScript quant engineer.
-ASSISTANT: Write clean, well‑tested TS code & minimal‑friction CLI UX.
-USER     : Supplies stock codes (e.g. 2330, 0050) and optional date range.
-```
+ASSISTANT: Produce clean, well-tested TS code & UX-friendly CLI.
+USER     : Requests specific fetch / rank / explain operations.
+````
 
 ---
 
-## 2  Factor Weights & Raw Fields
+## 2  Factor Weights & Raw Fields
 
-| Factor    | Weight | Raw Fields                               | TWSE / Other Endpoint                                 |
-| --------- | -----: | ---------------------------------------- | ----------------------------------------------------- |
-| Valuation |   40 % | PER, PBR, Dividend Yield                 | `/v1/exchangeReport/BWIBBU_d`                         |
-| Growth    |   25 % | Monthly Revenue (YoY, MoM), EPS, EPS QoQ | `/v1/opendata/t187ap03_L`, `/v1/opendata/t51apim03_A` |
-| Quality   |   15 % | ROE, Gross Margin, Operating Margin      | `/v1/opendata/t187ap05_L` *or* MOPS XBRL              |
-| Fund‑flow |   10 % | 外資/投信買超、Holding Ratio Δ                  | `fund/TWT38U` CSV (TWSE)                              |
-| Momentum  |   10 % | 52‑week RS%, MA20 > MA60 days            | `/v1/exchangeReport/MI_INDEX`                         |
-
----
-
-## 3  Sample API Calls (TypeScript)
-
-```ts
-import fetch from 'node-fetch';
-
-/** 3.1 Valuation (PER / PBR / Yield) for 2025‑06‑14 */
-const valuationRows = await fetch(
-  'https://api.twse.com.tw/v1/exchangeReport/BWIBBU_d?response=open_data&date=20250614'
-).then(r => r.json() as any[]);
-const tsmc = valuationRows.find(r => r[0] === '2330');
-console.log('TSMC PER =', Number(tsmc[2]));
-
-/** 3.2 Monthly Revenue for May 2025 */
-const revRows = await fetch(
-  'https://api.twse.com.tw/v1/opendata/t187ap03_L'
-).then(r => r.json() as any[]);
-const rev2330 = revRows.find(r => r['公司代號'] === '2330' && r['年月'] === '202505');
-console.log('Revenue YoY % =', Number(rev2330['去年同月增減(％)']));
-
-/** 3.3 Daily Price (OHLCV) — 2025‑06‑14 */
-const kAll = await fetch(
-  'https://api.twse.com.tw/v1/exchangeReport/MI_INDEX?response=open_data&date=20250614&type=ALL'
-).then(r => r.json() as any[]);
-// Filter by 2330 and grab close price
-```
-
-> *All fetchers must implement exponential back‑off, local caching (`.cache/`) and idempotent upsert into SQLite.*
+| Factor    |  Wt. | Raw Metrics                           | Primary Endpoint(s)                                      |
+| --------- | ---: | ------------------------------------- | -------------------------------------------------------- |
+| Valuation | 40 % | PER, PBR, Dividend Yield              | TWSE `/v1/exchangeReport/BWIBBU_d`                       |
+| Growth    | 25 % | Monthly Revenue YoY & MoM, EPS QoQ    | FinMind `TaiwanStockMonthRevenue`, `FinancialStatements` |
+| Quality   | 15 % | ROE, Gross Margin, Operating Margin   | FinMind or MOPS XBRL                                     |
+| Fund-flow | 10 % | 外資、投信、自營商 5d 累計張數                     | Goodinfo CSV / TWSE `fund/TWT38U`                        |
+| Momentum  | 10 % | 52-week RS%, MA20 > MA60 running days | TWSE `/v1/exchangeReport/MI_INDEX`                       |
 
 ---
 
-## 4  Database Schema (SQLite)
+## 3  Tech Stack
+
+| Layer   | Choice                   | Notes                 |
+| ------- | ------------------------ | --------------------- |
+| Runtime | **Node 22 (ESM)**        | Use top-level `await` |
+| DB      | **sql.js** (WASM SQLite) | No native build pains |
+| HTTP    | `node-fetch` (v3 ESM)    | Retries + back-off    |
+| CLI     | `yargs`                  | Sub-commands & flags  |
+| Test    | **Vitest**               | Coverage ≥ 90 %       |
+| Lint    | ESLint + Prettier        | `"strict": true`      |
+
+`.env` variables: `FINMIND_TOKEN`, `TWSE_USER_AGENT`.
+
+---
+
+## 4  Database Schema
 
 ```sql
--- fundamentals.db
-CREATE TABLE valuation (
-  stock_no TEXT,
-  date     DATE,
-  per      REAL,
-  pbr      REAL,
-  dividend_yield REAL,
-  PRIMARY KEY (stock_no, date)
-);
-CREATE TABLE growth (
-  stock_no TEXT,
-  month    DATE,
-  revenue  INTEGER,
-  yoy      REAL,
-  mom      REAL,
-  eps      REAL,
-  eps_qoq  REAL,
-  PRIMARY KEY (stock_no, month)
-);
-CREATE TABLE quality (
-  stock_no TEXT,
-  year     INTEGER,
-  roe      REAL,
-  gross_margin REAL,
-  op_margin    REAL,
-  PRIMARY KEY (stock_no, year)
-);
-CREATE TABLE fundflow (
-  stock_no TEXT,
-  date     DATE,
-  foreign_net INTEGER,
-  inv_trust_net INTEGER,
-  holding_ratio REAL,
-  PRIMARY KEY (stock_no, date)
-);
-CREATE TABLE price_daily (
-  stock_no TEXT,
-  date     DATE,
-  close    REAL,
-  volume   INTEGER,
-  PRIMARY KEY (stock_no, date)
-);
+-- fundamentals.sqlite (sql.js)
+CREATE TABLE valuation  (stockNo TEXT, date DATE, per REAL, pbr REAL, divYield REAL,
+                         PRIMARY KEY(stockNo,date));
+CREATE TABLE growth     (stockNo TEXT, month DATE, revenue INTEGER, yoy REAL,
+                         mom REAL, eps REAL, eps_qoq REAL, PRIMARY KEY(stockNo,month));
+CREATE TABLE quality    (stockNo TEXT, year INTEGER, roe REAL, grossMargin REAL,
+                         opMargin REAL, PRIMARY KEY(stockNo,year));
+CREATE TABLE chips      (stockNo TEXT, date DATE, foreignBuy INTEGER,
+                         investBuy INTEGER, dealerBuy INTEGER, PRIMARY KEY(stockNo,date));
+CREATE TABLE price_daily(stockNo TEXT, date DATE, close REAL, volume INTEGER,
+                         PRIMARY KEY(stockNo,date));
 ```
+
+All fetchers must **UPSERT** and create indices `(stockNo, date|month|year)`.
 
 ---
 
-## 5  Scoring Formulas (pseudo‑code)
+## 5  Scoring Engine API
 
 ```ts
-const z = (x,m,s)=> s? (x-m)/s : 0;
-valScore   = 50 + 25*(-z(PER)) + 25*(-z(PBR)) + 25*z(DividendYield);
-growthScore= 50 + 30*z(RevYoY) + 30*z(RevMoM) + 40*z(EPS_QoQ);
-qualityScore = 40*pctl(ROE)+30*pctl(GrossMargin)+30*pctl(OpMargin);
-fundScore    = 60*pctl(ForeignBuyStreak)+40*pctl(HoldingRatioDelta);
-momScore     = 60*pctl(RS52)+40*pctl(MA20_GT_MA60_Days/252);
-TotalScore   = 0.4*valScore + 0.25*growthScore + 0.15*qualityScore + 0.10*fundScore + 0.10*momScore;
+export interface SubScores {
+  valuation: number;
+  growth   : number;
+  quality  : number;
+  chips    : number;
+  momentum : number;
+}
+export interface ScoreResult extends SubScores {
+  total  : number;       // 0-100
+  missing: string[];     // e.g. ['eps']
+}
 ```
 
-Scores are clipped to 0–100.
+*Implementation contract*
+
+```ts
+// src/services/scoringEngine.ts
+export async function calcScore(
+  stockNo: string,
+  weights?: Partial<SubScores>
+): Promise<ScoreResult>;
+```
+
+* Rules:
+
+  * Each sub-score is 0-100 (z-score or percentile).
+  * Missing metric → sub-score = 0, metric name pushed to `missing`.
+  * `weights` override default **40/25/15/10/10**; must re-normalize to 100 %.
 
 ---
 
-## 6  CLI Interfaces
+## 6  CLI Commands
 
-* `npm run fetch-all` — execute every fetcher module.
-* `npm run rank --minScore=70 --limit=30 --export=markdown` — output ranked list.
-* `npm run explain <stockCode>` — display raw stats & factor breakdown.
+| Command                                                  | Purpose                                        |
+| -------------------------------------------------------- | ---------------------------------------------- |
+| `fetch-valuation / -growth / -quality / -chips / -price` | Individual fetchers                            |
+| `fetch-all`                                              | Sequentially runs all fetchers (promise chain) |
+| `rank [--minScore 70] [--limit 30] [--offline]`          | List sorted by `total`                         |
+| `explain <stock>`                                        | Show raw metrics, z-scores & sub-scores        |
+| `test`                                                   | Run Vitest                                     |
 
----
-
-## 7  Non‑Functional Requirements
-
-* **TypeScript 5 + Node 18**, dependencies limited to `better-sqlite3`, `node-fetch`, `yargs`, `vitest`.
-* 90 %+ unit‑test coverage; full data refresh ≤ 15 min on 1 vCPU.
-* Pass `eslint --max-warnings=0` and `tsc --noEmit`.
+`--offline` forces cache/DB reads, prohibits network I/O.
 
 ---
 
-## 8  Acceptance Checklist (Run on every PR)
+## 7  Caching & Offline Mode
 
-| #    | Test                                         | Expected                                                  |
-| ---- | -------------------------------------------- | --------------------------------------------------------- |
-| T‑01 | `npm run fetch-valuation` on fresh DB        | ≥ 1800 rows inserted into `valuation`.                    |
-| T‑02 | `npm run rank`                               | Markdown table header + ≤ 30 rows, all `TotalScore ≥ 70`. |
-| T‑03 | `npm run explain 2330`                       | Shows five factor scores summing to TotalScore.           |
-| T‑04 | `npm run rank --weights="40,20,20,10,10"`    | Uses new weights (inspect sample).                        |
-| T‑05 | Network offline -> `npm run rank`            | Works using cached DB; logs warning.                      |
-| T‑06 | `npm test`                                   | ≥ 90 % coverage; all tests green.                         |
-| T‑07 | GitHub Actions daily cron                    | Job finishes < 20 min.                                    |
-| T‑08 | Performance                                  | `time npm run fetch-all` < 900 s.                         |
-| T‑09 | Data integrity spot‑check 2891 on 2025‑06‑14 | Valuation fields match manual calculation.                |
-| T‑10 | Schema migration                             | Auto‑upgrade succeeds with `migrations/`.                 |
+* `cache/` stores JSON for each dataset + param + date.
+* TTL = 24 h; expired cache triggers live fetch.
+* In offline mode, stale cache is acceptable; if not present, CLI warns and skips stock.
 
 ---
 
-*End of Base Specification – import this file verbatim into every task prompt.*
+## 8  Acceptance Checklist
+
+| ID   | Test                                          | Expected Result                                    |
+| ---- | --------------------------------------------- | -------------------------------------------------- |
+| T-01 | `npm run fetch-valuation`                     | ≥ 1800 rows in `valuation`                         |
+| T-02 | `npm run rank`                                | Markdown header + ≤ 30 rows, all `TotalScore ≥ 70` |
+| T-03 | `npm run explain 2330`                        | Shows 5 sub-scores summing to TotalScore           |
+| T-04 | `npm run rank --weights="40,20,20,10,10"`     | Uses new weights                                   |
+| T-05 | Disconnect network → `npm run rank --offline` | Works from cache                                   |
+| T-06 | `npm test`                                    | Green, coverage ≥ 90 %                             |
+| T-07 | GitHub Actions cron\@08:30                    | Completes < 20 min                                 |
+| T-08 | `time npm run fetch-all`                      | < 900 s on 1 vCPU                                  |
+| T-09 | Data integrity spot check                     | Sample matches manual calc                         |
+| T-10 | Schema migration                              | Auto-upgrade succeeds                              |
+
+---
+
+*End of Base Spec v0.3 — always include verbatim in future prompts.*
+
+```
+```
