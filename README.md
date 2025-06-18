@@ -127,6 +127,13 @@ npm run rank -- --offline
 npm run explain 2330
 ```
 
+### 回測
+
+```bash
+# 執行 MA20/60 交叉回測
+npm run backtest -- --stock 00929
+```
+
 ### 視覺化分析
 
 ```bash

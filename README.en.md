@@ -100,6 +100,12 @@ npm run rank -- --stocks 2330,2454,0050
 npm run explain 2330
 ```
 
+### Backtesting
+
+```bash
+npm run backtest -- --stock 00929
+```
+
 ## 🧪 Testing
 
 ```bash

@@ -17,6 +17,7 @@
     "rank": "tsx src/cli/rank.ts",
     "explain": "tsx src/cli/explain.ts",
     "visualize": "tsx src/cli/visualize.ts",
+    "backtest": "tsx src/cli/backtest.ts",
     "update": "tsx src/cli/update.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
