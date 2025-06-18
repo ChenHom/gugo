@@ -55,4 +55,22 @@ describe('rank CLI', () => {
     expect(table).toHaveBeenCalled();
     table.mockRestore();
   });
+
+  it('passes custom weights', async () => {
+    query.mockReturnValue([{ stock_no: '1' }]);
+    calcScore.mockResolvedValue({ total: 20, valuation: 10, growth: 10, quality: 10, chips: 10, momentum: 10, missing: [] });
+    const table = vi.spyOn(console, 'table').mockImplementation(() => {});
+    await run(['--weights', '50,20,10,10,10']);
+    expect(calcScore.mock.calls[0][1]).toMatchObject({ weights: { valuation: 50 }});
+    table.mockRestore();
+  });
+
+  it('uses percentile method', async () => {
+    query.mockReturnValue([{ stock_no: '1' }]);
+    calcScore.mockResolvedValue({ total: 20, valuation: 10, growth: 10, quality: 10, chips: 10, momentum: 10, missing: [] });
+    const table = vi.spyOn(console, 'table').mockImplementation(() => {});
+    await run(['--method', 'percentile']);
+    expect(calcScore.mock.calls[0][1]).toMatchObject({ method: 'percentile' });
+    table.mockRestore();
+  });
 });

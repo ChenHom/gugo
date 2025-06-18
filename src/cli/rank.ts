@@ -9,15 +9,28 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     .option('minScore', { type: 'number', default: 0 })
     .option('limit', { type: 'number', default: 30 })
     .option('offline', { type: 'boolean', default: false })
+    .option('weights', { type: 'string', desc: 'custom weights as a,b,c,d,e' })
+    .option('method', { choices: ['zscore', 'percentile', 'rolling'] as const, default: 'zscore' })
+    .option('window', { type: 'number', default: 3 })
     .help()
     .parseSync();
+
+  const weightObj: any = {};
+  if (argv.weights) {
+    const parts = String(argv.weights).split(',');
+    const keys = ['valuation', 'growth', 'quality', 'chips', 'momentum'];
+    for (let i = 0; i < parts.length && i < keys.length; i++) {
+      const num = Number(parts[i]);
+      if (!Number.isNaN(num)) weightObj[keys[i] as keyof typeof weightObj] = num;
+    }
+  }
 
   const rows = query<{ stock_no: string }>('SELECT DISTINCT stock_no FROM valuation');
   const results: any[] = [];
 
   for (const r of rows) {
     try {
-      const score = await calcScore(r.stock_no);
+      const score = await calcScore(r.stock_no, { weights: weightObj, method: argv.method, window: argv.window });
       if (score.total >= argv.minScore) {
         results.push({ stockNo: r.stock_no, ...score });
       }
