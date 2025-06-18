@@ -135,6 +135,7 @@ npm run explain 2330
 
 # 自訂權重與計分方法
 npm run rank -- --weights "50,20,15,10,5" --method percentile
+
 ```
 
 ### 回測
