@@ -1,4 +1,23 @@
-import { FinMindClient, StockPriceData } from '../utils/finmindClient.js';import Database from 'better-sqlite3';import path from 'path';import fs from 'fs';export interface MomentumMetrics {  stock_id: string;  date: string;  rsi?: number;  sma_20?: number;  price_change_1m?: number;}/** * 動能指標資料擷取器 * 負責抓取和處理技術指標資料 */export class MomentumFetcher {  private client: FinMindClient;  private db: Database.Database | null = null;
+import { FinMindClient } from '../utils/finmindClient.js';
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+
+export interface MomentumMetrics {
+  stock_id: string;
+  date: string;
+  rsi?: number;
+  sma_20?: number;
+  price_change_1m?: number;
+}
+
+/**
+ * 動能指標資料擷取器
+ * 負責抓取和處理技術指標資料
+ */
+export class MomentumFetcher {
+  private client: FinMindClient;
+  private db: Database.Database | null = null;
   private dbPath: string;
 
   constructor(finmindToken?: string, dbPath: string = 'data/fundamentals.db') {

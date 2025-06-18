@@ -94,3 +94,24 @@ export const DEFAULT_WEIGHTS: FactorWeights = {
   fundFlow: 0.1,
   momentum: 0.1,
 };
+
+export interface SubScores {
+  valuation: number;
+  growth: number;
+  quality: number;
+  chips: number;
+  momentum: number;
+}
+
+export interface ScoreResult extends SubScores {
+  total: number;
+  missing: string[];
+}
+
+export const DEFAULT_SUB_WEIGHTS: SubScores = {
+  valuation: 40,
+  growth: 25,
+  quality: 15,
+  chips: 10,
+  momentum: 10,
+};

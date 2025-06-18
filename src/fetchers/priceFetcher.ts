@@ -1,4 +1,4 @@
-import { FinMindClient, StockPriceData, StockPERData } from '../utils/finmindClient.js';
+import { FinMindClient } from '../utils/finmindClient.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
