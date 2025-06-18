@@ -1,6 +1,6 @@
 // 常數定義
 export const API_BASE_URL = 'https://openapi.twse.com.tw';
-export const FINMIND_BASE_URL = 'https://api.finmindtrade.com/api/v3';
+export const FINMIND_BASE_URL = 'https://api.finmindtrade.com/api/v4';
 
 export const API_ENDPOINTS = {
   VALUATION: '/v1/exchangeReport/BWIBBU_d',
