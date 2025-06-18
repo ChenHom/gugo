@@ -130,6 +130,9 @@
 | ma_60 | REAL | 60日移動平均線 (元) | 445.3 |
 | rsi | REAL | RSI相對強弱指標 (0-100) | 67.8 |
 | macd | REAL | MACD指標 | 2.15 |
+| bb_upper | REAL | 布林通道上軌 | 460.1 |
+| bb_middle | REAL | 布林通道中軌 | 448.7 |
+| bb_lower | REAL | 布林通道下軌 | 437.3 |
 
 ### 🛠 系統管理表
 

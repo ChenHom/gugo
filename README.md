@@ -12,7 +12,7 @@
 - **成長因子**: 營收年增率、EPS季增率、營收月增率
 - **品質因子**: ROE、負債比、流動比率、現金流品質
 - **資金流因子**: 外資買賣超、投信動向、法人持股比例
-- **動能因子**: RSI、移動平均、價格動能、成交量比率
+- **動能因子**: RSI、移動平均(MA5/MA20/MA60)、MACD、布林通道、價格動能、成交量比率
 
 ### 🔄 自動化資料處理
 
@@ -111,6 +111,13 @@ npm run fetch-fund-flow     # 資金流資料（需 FinMind Token）
 npm run fetch-momentum      # 動能資料
 ```
 
+執行 `npm run fetch-momentum` 後，系統會計算 MA5、MA20、MA60、MACD 與布林通道等指標，
+並寫入 `technical_indicators` 資料表。範例輸出：
+
+```text
+2330: RSI=68.5, MA20=567.32, 月變化=4.2%
+```
+
 ### 股票分析
 
 ```bash
@@ -128,6 +135,14 @@ npm run explain 2330
 
 # 自訂權重與計分方法
 npm run rank -- --weights "50,20,15,10,5" --method percentile
+
+```
+
+### 回測
+
+```bash
+# 執行 MA20/60 交叉回測
+npm run backtest -- --stock 00929
 ```
 
 ### 視覺化分析

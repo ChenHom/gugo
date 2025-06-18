@@ -7,7 +7,13 @@ export interface MomentumMetrics {
   stock_id: string;
   date: string;
   rsi?: number;
-  sma_20?: number;
+  ma_5?: number;
+  ma_20?: number;
+  ma_60?: number;
+  macd?: number;
+  boll_upper?: number;
+  boll_middle?: number;
+  boll_lower?: number;
   price_change_1m?: number;
 }
 
@@ -41,17 +47,20 @@ export class MomentumFetcher {
   private initializeDatabase(): void {
     const db = this.getDb();
 
-    // 創建動能指標表
+    // 創建技術指標表
     db.exec(`
-      CREATE TABLE IF NOT EXISTS momentum_metrics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        stock_id TEXT NOT NULL,
-        date TEXT NOT NULL,
+      CREATE TABLE IF NOT EXISTS technical_indicators (
+        stock_no TEXT NOT NULL,
+        date DATE NOT NULL,
+        ma_5 REAL,
+        ma_20 REAL,
+        ma_60 REAL,
         rsi REAL,
-        sma_20 REAL,
-        price_change_1m REAL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(stock_id, date)
+        macd REAL,
+        bb_upper REAL,
+        bb_middle REAL,
+        bb_lower REAL,
+        PRIMARY KEY (stock_no, date)
       )
     `);
 
@@ -95,7 +104,11 @@ export class MomentumFetcher {
 
           // 計算技術指標
           const rsi = this.calculateRSI(closePrices);
-          const sma20 = this.calculateSMA(closePrices, 20);
+          const ma5 = this.calculateSMA(closePrices, 5);
+          const ma20 = this.calculateSMA(closePrices, 20);
+          const ma60 = this.calculateSMA(closePrices, 60);
+          const macd = this.calculateMACD(closePrices);
+          const bb = this.calculateBollingerBands(closePrices, 20);
 
           // 計算最新的指標值
           const latestData = sortedData[sortedData.length - 1];
@@ -103,7 +116,13 @@ export class MomentumFetcher {
 
           const latestDate = latestData.date;
           const latestRSI = rsi.length > 0 ? rsi[rsi.length - 1] : undefined;
-          const latestSMA20 = sma20.length > 0 ? sma20[sma20.length - 1] : undefined;
+          const latestMA5 = ma5.length > 0 ? ma5[ma5.length - 1] : undefined;
+          const latestMA20 = ma20.length > 0 ? ma20[ma20.length - 1] : undefined;
+          const latestMA60 = ma60.length > 0 ? ma60[ma60.length - 1] : undefined;
+          const latestMACD = macd.length > 0 ? macd[macd.length - 1] : undefined;
+          const latestBBUpper = bb.upper.length > 0 ? bb.upper[bb.upper.length - 1] : undefined;
+          const latestBBMiddle = bb.middle.length > 0 ? bb.middle[bb.middle.length - 1] : undefined;
+          const latestBBLower = bb.lower.length > 0 ? bb.lower[bb.lower.length - 1] : undefined;
 
           // 計算一個月價格變化率
           const priceChange1M = this.calculatePriceChange(closePrices, 22); // 約22個交易日為一個月
@@ -112,12 +131,18 @@ export class MomentumFetcher {
             stock_id: stockId,
             date: latestDate,
             ...(latestRSI !== undefined && { rsi: latestRSI }),
-            ...(latestSMA20 !== undefined && { sma_20: latestSMA20 }),
+            ...(latestMA5 !== undefined && { ma_5: latestMA5 }),
+            ...(latestMA20 !== undefined && { ma_20: latestMA20 }),
+            ...(latestMA60 !== undefined && { ma_60: latestMA60 }),
+            ...(latestMACD !== undefined && { macd: latestMACD }),
+            ...(latestBBUpper !== undefined && { boll_upper: latestBBUpper }),
+            ...(latestBBMiddle !== undefined && { boll_middle: latestBBMiddle }),
+            ...(latestBBLower !== undefined && { boll_lower: latestBBLower }),
             ...(priceChange1M !== undefined && { price_change_1m: priceChange1M })
           };
 
           allMetrics.push(metrics);
-          console.log(`✅ ${stockId} 動能指標計算完成: RSI=${latestRSI?.toFixed(2)}, SMA20=${latestSMA20?.toFixed(2)}, 月變化=${priceChange1M?.toFixed(2)}%`);
+          console.log(`✅ ${stockId} 動能指標計算完成: RSI=${latestRSI?.toFixed(2)}, MA20=${latestMA20?.toFixed(2)}, 月變化=${priceChange1M?.toFixed(2)}%`);
 
         } catch (error) {
           console.error(`❌ ${stockId} 動能指標計算失敗:`, error);
@@ -206,6 +231,70 @@ export class MomentumFetcher {
   }
 
   /**
+   * 計算指數移動平均線 (EMA)
+   */
+  private calculateEMA(prices: number[], period: number): number[] {
+    if (prices.length < period) return [];
+
+    const ema: number[] = [];
+    const k = 2 / (period + 1);
+
+    let prev = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    ema.push(prev);
+    for (let i = period; i < prices.length; i++) {
+      const price = prices[i];
+      prev = price * k + prev * (1 - k);
+      ema.push(prev);
+    }
+
+    return ema;
+  }
+
+  /**
+   * 計算 MACD (EMA12 - EMA26)
+   */
+  private calculateMACD(prices: number[]): number[] {
+    const shortPeriod = 12;
+    const longPeriod = 26;
+    if (prices.length < longPeriod) return [];
+
+    const emaShort = this.calculateEMA(prices, shortPeriod);
+    const emaLong = this.calculateEMA(prices, longPeriod);
+
+    const diff: number[] = [];
+    const offset = longPeriod - shortPeriod;
+    for (let i = 0; i < emaLong.length; i++) {
+      const shortVal = emaShort[i + offset];
+      const longVal = emaLong[i];
+      diff.push(shortVal - longVal);
+    }
+
+    return diff;
+  }
+
+  /**
+   * 計算布林通道
+   */
+  private calculateBollingerBands(prices: number[], period: number = 20): { upper: number[]; middle: number[]; lower: number[] } {
+    if (prices.length < period) return { upper: [], middle: [], lower: [] };
+
+    const middle = this.calculateSMA(prices, period);
+    const upper: number[] = [];
+    const lower: number[] = [];
+
+    for (let i = period - 1; i < prices.length; i++) {
+      const slice = prices.slice(i - period + 1, i + 1);
+      const mean = middle[i - period + 1];
+      const variance = slice.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / period;
+      const std = Math.sqrt(variance);
+      upper.push(mean + 2 * std);
+      lower.push(mean - 2 * std);
+    }
+
+    return { upper, middle, lower };
+  }
+
+  /**
    * 儲存動能指標資料到資料庫
    */
   private saveMomentumData(data: MomentumMetrics[]): void {
@@ -213,9 +302,9 @@ export class MomentumFetcher {
 
     const db = this.getDb();
     const stmt = db.prepare(
-      `INSERT OR REPLACE INTO momentum_metrics
-       (stock_id, date, rsi, sma_20, price_change_1m)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT OR REPLACE INTO technical_indicators
+       (stock_no, date, ma_5, ma_20, ma_60, rsi, macd, bb_upper, bb_middle, bb_lower, price_change_1m)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     for (const item of data) {
@@ -223,8 +312,14 @@ export class MomentumFetcher {
         stmt.run(
           item.stock_id,
           item.date,
+          item.ma_5 || null,
+          item.ma_20 || null,
+          item.ma_60 || null,
           item.rsi || null,
-          item.sma_20 || null,
+          item.macd || null,
+          item.boll_upper || null,
+          item.boll_middle || null,
+          item.boll_lower || null,
           item.price_change_1m || null
         );
       } catch (error) {
