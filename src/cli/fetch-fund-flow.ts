@@ -4,6 +4,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { FundFlowFetcher } from '../fetchers/fundFlowFetcher.js';
 import { DatabaseManager } from '../utils/databaseManager.js';
+import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
 
 const argv = yargs(hideBin(process.argv))
   .option('stocks', {
@@ -33,7 +34,9 @@ async function main() {
     const fetcher = new FundFlowFetcher();
     await fetcher.initialize();
 
-    const stockIds = argv.stocks ? argv.stocks.split(',').map(s => s.trim()) : ['2330', '2317', '2454'];
+    const stockIds = argv.stocks
+      ? argv.stocks.split(',').map(s => s.trim())
+      : DEFAULT_STOCK_CODES;
 
     const fundFlowResult = await fetcher.fetchFundFlowData({
       stockNos: stockIds,
