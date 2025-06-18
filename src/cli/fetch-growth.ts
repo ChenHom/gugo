@@ -34,8 +34,9 @@ async function main(): Promise<void> {
     const fetcher = new GrowthFetcher();
     await fetcher.initialize();
 
+    const stockList = argv.stocks ? argv.stocks.split(',').map((s: string) => s.trim()) : ['2330', '2317', '2454'];
     const options = {
-      stockNos: argv.stocks ? argv.stocks.split(',').map((s: string) => s.trim()) : undefined,
+      stockNos: stockList,
       useCache: !argv['no-cache'],
     };
 

@@ -115,6 +115,8 @@ export class GrowthFetcher {
 
     for (let i = 0; i < sortedData.length; i++) {
       const current = sortedData[i];
+      if (!current) continue; // 添加安全檢查
+
       const yearAgo = sortedData.find(item => {
         const currentDate = new Date(current.date);
         const itemDate = new Date(item.date);
@@ -240,8 +242,8 @@ export class GrowthFetcher {
   } = {}): Promise<{ success: boolean; data?: GrowthMetrics[]; error?: string }> {
     try {
       const stockIds: string[] = options.stockNos || ['2330', '2317', '2454']; // 預設股票
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate: string = new Date().toISOString().split('T')[0]!;
+      const startDate: string = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
       const allData: GrowthMetrics[] = [];
 

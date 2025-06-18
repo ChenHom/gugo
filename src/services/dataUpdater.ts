@@ -135,16 +135,17 @@ export class DataUpdater {
       let totalRecords = 0;
 
       // 更新營收資料
+      const stockList = options.stocks || ['2330', '2317', '2454'];
       const revenueResponse = await fetcher.fetchRevenueData({
         useCache: !options.force,
-        stockNos: options.stocks
+        stockNos: stockList
       });
       totalRecords += revenueResponse.data?.length || 0;
 
       // 更新EPS資料
       const epsResponse = await fetcher.fetchEpsData({
         useCache: !options.force,
-        stockNos: options.stocks
+        stockNos: stockList
       });
       totalRecords += epsResponse.data?.length || 0;
 
@@ -161,11 +162,21 @@ export class DataUpdater {
     return data.length;
   }
 
-  private async updateFundFlowData(_options: UpdateOptions): Promise<number> {
+  private async updateFundFlowData(options: UpdateOptions): Promise<number> {
     const fetcher = new FundFlowFetcher();
+    await fetcher.initialize();
 
-    const data = await fetcher.fetchFundFlowData();
-    return data.length;
+    try {
+      const stockList = options.stocks || ['2330', '2317', '2454'];
+      const result = await fetcher.fetchFundFlowData({
+        stockNos: stockList,
+        useCache: !options.force
+      });
+
+      return result.data?.length || 0;
+    } finally {
+      await fetcher.close();
+    }
   }
 
   private async updateMomentumData(_options: UpdateOptions): Promise<number> {

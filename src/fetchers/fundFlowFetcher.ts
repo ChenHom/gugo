@@ -75,7 +75,7 @@ export class FundFlowFetcher {
     try {
       // 抓取三大法人資料
       const institutionalData = await this.client.getInstitutionalInvestors(stockId, startDate, endDate);
-      
+
       if (!institutionalData || institutionalData.length === 0) {
         console.log(`⚠️  ${stockId} 無三大法人資料`);
         return [];
@@ -83,10 +83,10 @@ export class FundFlowFetcher {
 
       // 處理資料
       const flowMetrics = this.processInstitutionalData(institutionalData);
-      
+
       // 儲存到資料庫
       await this.saveFundFlowMetrics(flowMetrics);
-      
+
       console.log(`✅ 成功處理 ${flowMetrics.length} 筆資金流向資料`);
       return flowMetrics;
 
@@ -101,10 +101,10 @@ export class FundFlowFetcher {
    */
   private processInstitutionalData(data: InstitutionalInvestorsData[]): FundFlowMetrics[] {
     const metrics: FundFlowMetrics[] = [];
-    
+
     // 按日期分組
     const groupedByDate = new Map<string, InstitutionalInvestorsData[]>();
-    
+
     for (const item of data) {
       const date = item.date;
       if (!groupedByDate.has(date)) {
@@ -156,7 +156,7 @@ export class FundFlowFetcher {
   private async saveFundFlowMetrics(metrics: FundFlowMetrics[]): Promise<void> {
     const db = this.getDb();
     const insertStmt = db.prepare(`
-      INSERT OR REPLACE INTO fund_flow_metrics 
+      INSERT OR REPLACE INTO fund_flow_metrics
       (stock_id, date, foreign_net, inv_trust_net, dealer_net, holding_ratio)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
@@ -202,10 +202,42 @@ export class FundFlowFetcher {
   }
 
   /**
-   * 向後相容的方法，供舊版 CLI 使用
+   * 初始化資料庫連接
    */
-  async fetchFundFlowData(stockId: string, startDate: string, endDate: string): Promise<FundFlowMetrics[]> {
-    return this.fetchInstitutionalFlow(stockId, startDate, endDate);
+  async initialize(): Promise<void> {
+    this.getDb();
+    console.log('資金流向資料庫初始化完成');
+  }
+
+  /**
+   * CLI 相容性方法 - 抓取資金流向資料
+   */
+  async fetchFundFlowData(options: {
+    stockNos?: string[];
+    useCache?: boolean;
+  } = {}): Promise<{ success: boolean; data?: FundFlowMetrics[]; error?: string }> {
+    try {
+      const stockIds: string[] = options.stockNos || ['2330', '2317', '2454']; // 預設股票
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const allData: FundFlowMetrics[] = [];
+
+      for (const stockId of stockIds) {
+        const metrics = await this.fetchInstitutionalFlow(stockId, startDate, endDate);
+        allData.push(...metrics);
+
+        // 避免 API 限制
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      return { success: true, data: allData };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
 
   /**
@@ -217,12 +249,12 @@ export class FundFlowFetcher {
     endDate: string
   ): Promise<Map<string, FundFlowMetrics[]>> {
     const results = new Map<string, FundFlowMetrics[]>();
-    
+
     for (const stockId of stockIds) {
       try {
         const metrics = await this.fetchInstitutionalFlow(stockId, startDate, endDate);
         results.set(stockId, metrics);
-        
+
         // 避免 API 限制，稍微延遲
         await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
@@ -230,7 +262,7 @@ export class FundFlowFetcher {
         results.set(stockId, []);
       }
     }
-    
+
     return results;
   }
 
