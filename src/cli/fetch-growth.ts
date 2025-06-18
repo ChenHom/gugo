@@ -4,6 +4,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { GrowthFetcher } from '../fetchers/growthFetcher.js';
 import { ErrorHandler } from '../utils/errorHandler.js';
+import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
 
 const argv = yargs(hideBin(process.argv))
   .option('stocks', {
@@ -34,7 +35,9 @@ async function main(): Promise<void> {
     const fetcher = new GrowthFetcher();
     await fetcher.initialize();
 
-    const stockList = argv.stocks ? argv.stocks.split(',').map((s: string) => s.trim()) : ['2330', '2317', '2454'];
+    const stockList = argv.stocks
+      ? argv.stocks.split(',').map((s: string) => s.trim())
+      : DEFAULT_STOCK_CODES;
     const options = {
       stockNos: stockList,
       useCache: !argv['no-cache'],

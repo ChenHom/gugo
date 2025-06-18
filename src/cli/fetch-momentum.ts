@@ -2,6 +2,7 @@
 
 import { MomentumFetcher } from '../fetchers/momentumFetcher.js';
 import { DatabaseManager } from '../utils/databaseManager.js';
+import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -16,7 +17,7 @@ async function main() {
       alias: 's',
       type: 'string',
       description: '股票代號（逗號分隔）',
-      default: '2330,2317,2454,2308,2603'
+      default: DEFAULT_STOCK_CODES.join(',')
     })
     .option('days', {
       alias: 'd',

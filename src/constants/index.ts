@@ -76,3 +76,5 @@ export const RATE_LIMIT = {
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY_MS: 1000,
 } as const;
+
+export { DEFAULT_STOCK_CODES } from './stocks.js';
