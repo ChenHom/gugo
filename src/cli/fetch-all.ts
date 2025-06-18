@@ -34,6 +34,7 @@ async function main(): Promise<void> {
       growthFetcher.initialize(),
       qualityFetcher.initialize(),
       fundFlowFetcher.initialize(),
+      momentumFetcher.initialize(),
       priceFetcher.initialize(),
     ]);
 
@@ -100,9 +101,13 @@ async function main(): Promise<void> {
 
       // 抓取資金流資料
       try {
-        const fundFlowData = await fundFlowFetcher.fetchFundFlowData();
-        totalRecords += fundFlowData.length;
-        console.log(`✅ 資金流資料: ${fundFlowData.length} 筆`);
+        const fundFlowResult = await fundFlowFetcher.fetchFundFlowData();
+        if (fundFlowResult.success && fundFlowResult.data) {
+          totalRecords += fundFlowResult.data.length;
+          console.log(`✅ 資金流資料: ${fundFlowResult.data.length} 筆`);
+        } else {
+          console.log(`⚠️ 資金流資料抓取無結果: ${fundFlowResult.error || '未知錯誤'}`);
+        }
       } catch (error) {
         console.error(`❌ 資金流資料抓取失敗 (${stockId}):`, error);
       }
@@ -114,7 +119,7 @@ async function main(): Promise<void> {
     // 抓取動能資料
     console.log('\n🚀 抓取動能資料...');
     try {
-      const momentumData = await momentumFetcher.fetchMomentumData();
+      const momentumData = await momentumFetcher.fetchMomentumData(TEST_STOCKS);
       totalRecords += momentumData.length;
       console.log(`✅ 動能資料: ${momentumData.length} 筆`);
     } catch (error) {

@@ -13,6 +13,7 @@
     "fetch-quality": "tsx src/cli/fetch-quality.ts",
     "fetch-fund-flow": "tsx src/cli/fetch-fund-flow.ts",
     "fetch-momentum": "tsx src/cli/fetch-momentum.ts",
+    "fetch-price": "tsx src/cli/fetch-price.ts",
     "rank": "tsx src/cli/rank.ts",
     "explain": "tsx src/cli/explain.ts",
     "visualize": "tsx src/cli/visualize.ts",
