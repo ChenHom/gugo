@@ -10,22 +10,27 @@ const query = db.query as unknown as QueryMock;
 const valuationRows = [
   { stock_no: '1111', per: 10, pbr: 1, dividend_yield: 5 },
   { stock_no: '2222', per: 20, pbr: 2, dividend_yield: 3 },
+  { stock_no: '3333', per: 15, pbr: 1.5, dividend_yield: 4 },
 ];
 const growthRows = [
   { stock_no: '1111', yoy: 10, mom: 5, eps_qoq: 2 },
   { stock_no: '2222', yoy: 5, mom: 2, eps_qoq: 1 },
+  { stock_no: '3333', yoy: 8, mom: 3, eps_qoq: 1.5 },
 ];
 const qualityRows = [
   { stock_no: '1111', roe: 15, gross_margin: 30, op_margin: 20 },
   { stock_no: '2222', roe: 10, gross_margin: 25, op_margin: 15 },
+  { stock_no: '3333', roe: 12, gross_margin: 28, op_margin: 18 },
 ];
 const fundRows = [
   { stock_no: '1111', foreign_net: 100, inv_trust_net: 50 },
   { stock_no: '2222', foreign_net: 50, inv_trust_net: 20 },
+  { stock_no: '3333', foreign_net: 80, inv_trust_net: 30 },
 ];
 const priceRows = [
   { stock_no: '1111', close: 100 },
   { stock_no: '2222', close: 80 },
+  { stock_no: '3333', close: 90 },
 ];
 
 function setupMocks() {
@@ -95,5 +100,11 @@ describe('calcScore', () => {
   it('partial weights are normalized', async () => {
     const res = await calcScore('1111', { valuation: 1 });
     expect(res.total).toBeGreaterThan(0);
+  });
+
+  it('calculates score for additional stock code', async () => {
+    const res = await calcScore('3333');
+    expect(res.total).toBeGreaterThan(0);
+    expect(res.missing).toEqual([]);
   });
 });

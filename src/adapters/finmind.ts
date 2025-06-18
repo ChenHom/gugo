@@ -1,7 +1,8 @@
 import fetch from 'node-fetch';
 import { readCache, writeCache } from '../cache.js';
+import { FINMIND_BASE_URL } from '../constants/index.js';
 
-const BASE_URL = 'https://api.finmindtrade.com/api/v4/data';
+const BASE_URL = `${FINMIND_BASE_URL}/data`;
 
 export async function fetchFinMind(
   dataset: string,

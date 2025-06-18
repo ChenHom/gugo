@@ -120,7 +120,7 @@ export class FinMindClient {
       }
     }
 
-    const url = new URL('/api/v4/data', 'https://api.finmindtrade.com');
+    const url = new URL('/data', this.baseUrl);
 
     // 設定基本參數
     url.searchParams.set('dataset', dataset);
