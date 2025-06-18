@@ -253,17 +253,27 @@ export class PriceFetcher {
    * 計算技術指標
    */
   calculateTechnicalIndicators(prices: PriceData[]): {
-    sma20: number[];
-    sma50: number[];
+    ma5: number[];
+    ma20: number[];
+    ma60: number[];
     rsi: number[];
+    macd: number[];
+    bbUpper: number[];
+    bbMiddle: number[];
+    bbLower: number[];
     volatility: number;
   } {
     const closes = prices.map(p => p.close);
 
     return {
-      sma20: this.calculateSMA(closes, 20),
-      sma50: this.calculateSMA(closes, 50),
+      ma5: this.calculateSMA(closes, 5),
+      ma20: this.calculateSMA(closes, 20),
+      ma60: this.calculateSMA(closes, 60),
       rsi: this.calculateRSI(closes, 14),
+      macd: this.calculateMACD(closes),
+      bbUpper: this.calculateBollingerBands(closes, 20).upper,
+      bbMiddle: this.calculateBollingerBands(closes, 20).middle,
+      bbLower: this.calculateBollingerBands(closes, 20).lower,
       volatility: this.calculateVolatility(closes),
     };
   }
@@ -329,6 +339,61 @@ export class PriceFetcher {
     const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - mean, 2), 0) / (returns.length - 1);
 
     return Math.sqrt(variance * 252); // 年化波動率
+  }
+
+  private calculateEMA(prices: number[], period: number): number[] {
+    if (prices.length < period) return [];
+
+    const ema: number[] = [];
+    const k = 2 / (period + 1);
+
+    let prev = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    ema.push(prev);
+    for (let i = period; i < prices.length; i++) {
+      const price = prices[i];
+      prev = price * k + prev * (1 - k);
+      ema.push(prev);
+    }
+
+    return ema;
+  }
+
+  private calculateMACD(prices: number[]): number[] {
+    const shortPeriod = 12;
+    const longPeriod = 26;
+    if (prices.length < longPeriod) return [];
+
+    const emaShort = this.calculateEMA(prices, shortPeriod);
+    const emaLong = this.calculateEMA(prices, longPeriod);
+
+    const diff: number[] = [];
+    const offset = longPeriod - shortPeriod;
+    for (let i = 0; i < emaLong.length; i++) {
+      const shortVal = emaShort[i + offset];
+      const longVal = emaLong[i];
+      diff.push(shortVal - longVal);
+    }
+
+    return diff;
+  }
+
+  private calculateBollingerBands(prices: number[], period: number = 20): { upper: number[]; middle: number[]; lower: number[] } {
+    if (prices.length < period) return { upper: [], middle: [], lower: [] };
+
+    const middle = this.calculateSMA(prices, period);
+    const upper: number[] = [];
+    const lower: number[] = [];
+
+    for (let i = period - 1; i < prices.length; i++) {
+      const slice = prices.slice(i - period + 1, i + 1);
+      const mean = middle[i - period + 1];
+      const variance = slice.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / period;
+      const std = Math.sqrt(variance);
+      upper.push(mean + 2 * std);
+      lower.push(mean - 2 * std);
+    }
+
+    return { upper, middle, lower };
   }
 
   /**
