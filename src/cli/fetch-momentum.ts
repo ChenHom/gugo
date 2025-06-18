@@ -49,9 +49,9 @@ async function main() {
       console.log('\n📈 動能資料樣本:');
       momentumData.forEach(data => {
         const rsi = data.rsi ? data.rsi.toFixed(1) : 'N/A';
-        const sma20 = data.sma_20 ? data.sma_20.toFixed(2) : 'N/A';
+        const ma20 = data.ma_20 ? data.ma_20.toFixed(2) : 'N/A';
         const change = data.price_change_1m ? data.price_change_1m.toFixed(1) + '%' : 'N/A';
-        console.log(`${data.stock_id}: RSI=${rsi}, SMA20=${sma20}, 月變化=${change}`);
+        console.log(`${data.stock_id}: RSI=${rsi}, MA20=${ma20}, 月變化=${change}`);
       });
     }
 

@@ -19,6 +19,8 @@ describe('FinMindClient request generation', () => {
       ok: true,
       json: async () => ({ status: 200, msg: 'ok', data: [] }),
     });
+    vi.spyOn(defaultCache, 'get').mockResolvedValue(null);
+    vi.spyOn(defaultCache, 'set').mockResolvedValue();
   });
 
   it('builds correct URL for getFinancialStatements', async () => {
