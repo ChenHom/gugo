@@ -131,6 +131,16 @@
 | rsi | REAL | RSI相對強弱指標 (0-100) | 67.8 |
 | macd | REAL | MACD指標 | 2.15 |
 
+### 🛠 系統管理表
+
+#### `migration_history` - 資料庫遷移紀錄表
+記錄已套用的資料庫 migration
+
+| 欄位名 | 型別 | 說明 |
+|--------|------|------|
+| filename | TEXT | migration 檔名 |
+| executed_at | DATETIME | 執行時間 |
+
 ### 🔍 綜合視圖
 
 #### `stock_comprehensive_view` - 綜合查詢視圖
@@ -146,8 +156,6 @@
 
 為了提升查詢效能，系統為每個主要查詢欄位建立索引：
 
-- `idx_price_daily_date` - 股價表日期索引
-- `idx_valuation_date` - 估值表日期索引
 - `idx_growth_month` - 成長表月份索引
 - `idx_quality_year` - 品質表年度索引
 - `idx_fundflow_date` - 資金流向表日期索引
