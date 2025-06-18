@@ -47,8 +47,8 @@ async function main() {
     const fetcher = new PriceFetcher();
     await fetcher.initialize();
 
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - argv.days! * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const endDate: string = new Date().toISOString().split('T')[0]!;
+    const startDate: string = new Date(Date.now() - argv.days! * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
     let priceCount = 0;
     let valuationCount = 0;
@@ -58,13 +58,13 @@ async function main() {
         console.log(`處理股票 ${stockId}...`);
 
         if (argv.type === 'price' || argv.type === 'both') {
-          const priceData = await fetcher.fetchStockPrice(stockId, startDate, endDate || undefined);
+          const priceData = await fetcher.fetchStockPrice(stockId, startDate, endDate);
           priceCount += priceData.length;
           console.log(`✅ ${stockId} 股價資料: ${priceData.length} 筆`);
         }
 
         if (argv.type === 'valuation' || argv.type === 'both') {
-          const valuationData = await fetcher.fetchValuation(stockId, startDate, endDate || undefined);
+          const valuationData = await fetcher.fetchValuation(stockId, startDate, endDate);
           valuationCount += valuationData.length;
           console.log(`✅ ${stockId} 估值資料: ${valuationData.length} 筆`);
         }

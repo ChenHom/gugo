@@ -74,15 +74,15 @@ export class MomentumFetcher {
       console.log(`開始抓取 ${stockIds.length} 支股票的動能資料...`);
 
       const allMetrics: MomentumMetrics[] = [];
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate: string = new Date().toISOString().split('T')[0]!;
+      const startDate: string = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
       for (const stockId of stockIds) {
         try {
           console.log(`處理股票 ${stockId}...`);
 
           // 從 FinMind API 獲取股價資料
-          const priceData = await this.client.getStockPrice(stockId, startDate, endDate);
+          const priceData = await this.client.getStockPrice(stockId, startDate, endDate!);
 
           if (!priceData || priceData.length === 0) {
             console.log(`⚠️  ${stockId} 無股價資料`);
