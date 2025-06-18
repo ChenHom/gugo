@@ -179,11 +179,15 @@ export class DataUpdater {
     }
   }
 
-  private async updateMomentumData(_options: UpdateOptions): Promise<number> {
+  private async updateMomentumData(options: UpdateOptions): Promise<number> {
     const fetcher = new MomentumFetcher();
-
-    const data = await fetcher.fetchMomentumData();
-    return data.length;
+    try {
+      const stocks = options.stocks || ['2330'];
+      const data = await fetcher.fetchMomentumData(stocks);
+      return data.length;
+    } finally {
+      await fetcher.close();
+    }
   }
 
   async getLastUpdateTime(): Promise<Record<string, Date | null>> {

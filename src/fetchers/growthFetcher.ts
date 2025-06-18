@@ -267,12 +267,11 @@ export class GrowthFetcher {
   /**
    * CLI 相容性方法 - 抓取 EPS 資料
    */
-  async fetchEpsData(options: {
+  async fetchEpsData(_opts: {
     stockNos?: string[];
     useCache?: boolean;
   } = {}): Promise<{ success: boolean; data?: GrowthMetrics[]; error?: string }> {
     try {
-      const stockIds = options.stockNos || ['2330', '2317', '2454'];
       // EPS 資料通常季報，這裡簡化處理
       console.log('⚠️  EPS 成長資料需要整合財報 API，目前回傳空資料');
       return { success: true, data: [] };

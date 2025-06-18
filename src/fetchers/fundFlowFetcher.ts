@@ -68,7 +68,7 @@ export class FundFlowFetcher {
   async fetchInstitutionalFlow(
     stockId: string,
     startDate: string,
-    endDate: string
+    endDate: string | undefined
   ): Promise<FundFlowMetrics[]> {
     console.log(`💰 抓取資金流向資料: ${stockId} (${startDate} ~ ${endDate})`);
 
@@ -218,13 +218,13 @@ export class FundFlowFetcher {
   } = {}): Promise<{ success: boolean; data?: FundFlowMetrics[]; error?: string }> {
     try {
       const stockIds: string[] = options.stockNos || ['2330', '2317', '2454']; // 預設股票
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate: string = new Date().toISOString().split('T')[0]!;
+      const startDate: string = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
       const allData: FundFlowMetrics[] = [];
 
       for (const stockId of stockIds) {
-        const metrics = await this.fetchInstitutionalFlow(stockId, startDate, endDate);
+        const metrics = await this.fetchInstitutionalFlow(stockId, startDate, endDate!);
         allData.push(...metrics);
 
         // 避免 API 限制
@@ -246,13 +246,13 @@ export class FundFlowFetcher {
   async fetchMultipleStocks(
     stockIds: string[],
     startDate: string,
-    endDate: string
+    endDate: string | undefined
   ): Promise<Map<string, FundFlowMetrics[]>> {
     const results = new Map<string, FundFlowMetrics[]>();
 
     for (const stockId of stockIds) {
       try {
-        const metrics = await this.fetchInstitutionalFlow(stockId, startDate, endDate);
+        const metrics = await this.fetchInstitutionalFlow(stockId, startDate, endDate!);
         results.set(stockId, metrics);
 
         // 避免 API 限制，稍微延遲

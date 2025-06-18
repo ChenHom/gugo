@@ -1,4 +1,23 @@
-import { FinMindClient, StockPriceData } from '../utils/finmindClient.js';import Database from 'better-sqlite3';import path from 'path';import fs from 'fs';export interface MomentumMetrics {  stock_id: string;  date: string;  rsi?: number;  sma_20?: number;  price_change_1m?: number;}/** * 動能指標資料擷取器 * 負責抓取和處理技術指標資料 */export class MomentumFetcher {  private client: FinMindClient;  private db: Database.Database | null = null;
+import { FinMindClient } from '../utils/finmindClient.js';
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+
+export interface MomentumMetrics {
+  stock_id: string;
+  date: string;
+  rsi?: number;
+  sma_20?: number;
+  price_change_1m?: number;
+}
+
+/**
+ * 動能指標資料擷取器
+ * 負責抓取和處理技術指標資料
+ */
+export class MomentumFetcher {
+  private client: FinMindClient;
+  private db: Database.Database | null = null;
   private dbPath: string;
 
   constructor(finmindToken?: string, dbPath: string = 'data/fundamentals.db') {
@@ -55,15 +74,15 @@ import { FinMindClient, StockPriceData } from '../utils/finmindClient.js';import
       console.log(`開始抓取 ${stockIds.length} 支股票的動能資料...`);
 
       const allMetrics: MomentumMetrics[] = [];
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const endDate: string = new Date().toISOString().split('T')[0]!;
+      const startDate: string = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
       for (const stockId of stockIds) {
         try {
           console.log(`處理股票 ${stockId}...`);
 
           // 從 FinMind API 獲取股價資料
-          const priceData = await this.client.getStockPrice(stockId, startDate, endDate);
+          const priceData = await this.client.getStockPrice(stockId, startDate, endDate!);
 
           if (!priceData || priceData.length === 0) {
             console.log(`⚠️  ${stockId} 無股價資料`);

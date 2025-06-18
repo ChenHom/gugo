@@ -1,4 +1,4 @@
-import { FinMindClient, StockPriceData, StockPERData } from '../utils/finmindClient.js';
+import { FinMindClient } from '../utils/finmindClient.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -97,7 +97,7 @@ export class PriceFetcher {
   async fetchStockPrice(
     stockId: string,
     startDate: string,
-    endDate?: string
+    endDate: string | undefined
   ): Promise<PriceData[]> {
     try {
       console.log(`📈 抓取股價資料: ${stockId} (${startDate} ~ ${endDate || '今日'})`);
@@ -133,7 +133,7 @@ export class PriceFetcher {
   async fetchValuation(
     stockId: string,
     startDate: string,
-    endDate?: string
+    endDate: string | undefined
   ): Promise<ValuationData[]> {
     try {
       console.log(`📊 抓取估值資料: ${stockId} (${startDate} ~ ${endDate || '今日'})`);
