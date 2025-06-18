@@ -5,7 +5,7 @@ A comprehensive TypeScript tool that ranks Taiwan-listed equities by analyzing m
 ## 🎯 Features
 
 - **Multi-Factor Analysis**: Combines 5 key investment factors with customizable weights
-- **Real-time Data**: Fetches latest data from Taiwan Stock Exchange (TWSE) OpenAPI
+- **Real-time Data**: Fetches latest data from FinMind API with fallback to TWSE OpenAPI
 - **Smart Caching**: Local caching with automatic expiration and cleanup
 - **Data Quality**: Built-in data cleaning and validation
 - **CLI Interface**: Easy-to-use command-line tools
@@ -49,11 +49,11 @@ Total Score = 40% Valuation + 25% Growth + 15% Quality + 10% Fund-flow + 10% Mom
 
 | Factor    | Weight | Metrics                    | Data Source                |
 |-----------|--------|----------------------------|----------------------------|
-| Valuation | 40%    | P/E, P/B, Dividend Yield  | TWSE BWIBBU_d             |
-| Growth    | 25%    | Revenue YoY/MoM, EPS QoQ  | TWSE t187ap03_L, t51apim03_A |
-| Quality   | 15%    | ROE, Margins              | TWSE t187ap05_L           |
-| Fund-flow | 10%    | Foreign/Trust Net Buying  | TWSE TWT38U               |
-| Momentum  | 10%    | Price trends, MA signals  | TWSE MI_INDEX             |
+| Valuation | 40%    | P/E, P/B, Dividend Yield  | FinMind TaiwanStockPER |
+| Growth    | 25%    | Revenue YoY/MoM, EPS QoQ  | FinMind TaiwanStockMonthRevenue/FinancialStatements |
+| Quality   | 15%    | ROE, Margins              | FinMind TaiwanStockBalanceSheet |
+| Fund-flow | 10%    | Foreign/Trust Net Buying  | FinMind InstitutionalInvestorsBuySell |
+| Momentum  | 10%    | Price trends, MA signals  | FinMind TaiwanStockPrice |
 
 ## 💻 CLI Commands
 
@@ -156,7 +156,7 @@ docs/                   # Documentation
 - **SQLite** with better-sqlite3
 - **Vitest** for testing
 - **ESLint** for code quality
-- **TWSE OpenAPI** for data sources
+- **FinMind API** and **TWSE OpenAPI** for data sources
 
 ## 📜 License
 
