@@ -3,6 +3,8 @@
 import { DataUpdater, UpdateOptions } from '../services/dataUpdater.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 interface UpdateArgs {
   force?: boolean;
@@ -46,7 +48,10 @@ async function main() {
   const updater = new DataUpdater();
 
   try {
+    await ErrorHandler.initialize();
+    const initSpinner = ora('初始化更新器...').start();
     await updater.initialize();
+    initSpinner.succeed('初始化完成');
 
     if (argv.status) {
       await showUpdateStatus(updater);
@@ -60,7 +65,8 @@ async function main() {
     await performUpdate(updater, argv);
 
   } catch (error) {
-    console.error('❌ 更新失敗:', error);
+    await ErrorHandler.logError(error as Error, 'update');
+    console.error('❌ 更新失敗:', (error as Error).message);
     process.exit(1);
   } finally {
     await updater.close();
@@ -68,11 +74,13 @@ async function main() {
 }
 
 async function showUpdateStatus(updater: DataUpdater) {
+  const spin = ora('取得更新狀態...').start();
   console.log('📊 資料更新狀態');
   console.log('================');
 
   const lastUpdateTimes = await updater.getLastUpdateTime();
 
+  spin.succeed('狀態取得完成');
   for (const [factor, lastUpdate] of Object.entries(lastUpdateTimes)) {
     const status = lastUpdate
       ? `${lastUpdate.toLocaleString('zh-TW')} (${getTimeAgo(lastUpdate)})`
@@ -83,9 +91,9 @@ async function showUpdateStatus(updater: DataUpdater) {
 }
 
 async function cleanOldData(updater: DataUpdater) {
-  console.log('🗑️  清理舊資料...');
+  const spin = ora('🗑️  清理舊資料...').start();
   const deletedCount = await updater.cleanOldData(90);
-  console.log(`✅ 已清理 ${deletedCount} 筆舊資料`);
+  spin.succeed(`已清理 ${deletedCount} 筆舊資料`);
 }
 
 async function performUpdate(updater: DataUpdater, argv: UpdateArgs) {
@@ -96,6 +104,7 @@ async function performUpdate(updater: DataUpdater, argv: UpdateArgs) {
   if (argv.stocks) options.stocks = argv.stocks.split(',');
 
   console.log('🔄 開始資料更新...');
+  const spin = ora('更新中...').start();
   if (options.force) {
     console.log('⚡ 強制更新模式 (忽略快取)');
   }
@@ -107,6 +116,7 @@ async function performUpdate(updater: DataUpdater, argv: UpdateArgs) {
   }
 
   const results = await updater.updateAllData(options);
+  spin.succeed('資料更新完成');
 
   console.log('\n📊 更新結果摘要:');
   console.log('================');

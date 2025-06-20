@@ -3,8 +3,11 @@ import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs';
 import { query } from '../db.js';
 import { calcScore } from '../services/scoringEngine.js';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
-export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
+export async function main(args: string[] = hideBin(process.argv)): Promise<void> {
+  await ErrorHandler.initialize();
   const argv = yargs(args)
     .option('minScore', { type: 'number', default: 0 })
     .option('limit', { type: 'number', default: 30 })
@@ -27,6 +30,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
 
   const rows = query<{ stock_no: string }>('SELECT DISTINCT stock_no FROM valuation');
   const results: any[] = [];
+  const spin = ora('計算分數...').start();
 
   for (const r of rows) {
     try {
@@ -43,6 +47,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     }
   }
 
+  spin.succeed('計算完成');
   results.sort((a, b) => b.total - a.total);
   const top = results.slice(0, argv.limit).map(r => ({
     stock: r.stockNo,
@@ -55,6 +60,16 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
   }));
 
   console.table(top);
+}
+
+export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
+  try {
+    await main(args);
+  } catch (error) {
+    await ErrorHandler.logError(error as Error, 'rank');
+    console.error('排名計算失敗:', (error as Error).message);
+    process.exit(1);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

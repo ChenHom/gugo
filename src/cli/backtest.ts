@@ -4,9 +4,13 @@ import yargs from 'yargs';
 import { backtestMA } from '../backtest/maStrategy.js';
 import { backtestMulti, TopNStrategy, ThresholdStrategy } from '../backtest/multiStrategy.js';
 import { query } from '../db.js';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
-  const argv = yargs(args)
+  try {
+    await ErrorHandler.initialize();
+    const argv = yargs(args)
     .option('stock', { type: 'string' })
     .option('strategy', {
       type: 'string',
@@ -21,7 +25,9 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
 
   if (argv.strategy === 'ma') {
     if (!argv.stock) throw new Error('stock required for ma strategy');
+    const spin = ora('執行回測...').start();
     const res = await backtestMA(argv.stock);
+    spin.succeed('回測完成');
     console.log(`Annual Return: ${(res.annualReturn * 100).toFixed(2)}%`);
     console.log(`Sharpe Ratio: ${res.sharpe.toFixed(2)}`);
     console.log(`Max Drawdown: ${(res.maxDrawdown * 100).toFixed(2)}%`);
@@ -49,10 +55,17 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     strategy = new ThresholdStrategy(scores, argv.threshold);
   }
 
-  const res = backtestMulti(prices, strategy, { rebalance: argv.rebalance });
-  console.log(`Annual Return: ${(res.annualReturn * 100).toFixed(2)}%`);
-  console.log(`Sharpe Ratio: ${res.sharpe.toFixed(2)}`);
-  console.log(`Max Drawdown: ${(res.maxDrawdown * 100).toFixed(2)}%`);
+    const spin = ora('執行回測...').start();
+    const res = backtestMulti(prices, strategy, { rebalance: argv.rebalance });
+    spin.succeed('回測完成');
+    console.log(`Annual Return: ${(res.annualReturn * 100).toFixed(2)}%`);
+    console.log(`Sharpe Ratio: ${res.sharpe.toFixed(2)}`);
+    console.log(`Max Drawdown: ${(res.maxDrawdown * 100).toFixed(2)}%`);
+  } catch (error) {
+    await ErrorHandler.logError(error as Error, 'backtest');
+    console.error('回測失敗:', (error as Error).message);
+    process.exit(1);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

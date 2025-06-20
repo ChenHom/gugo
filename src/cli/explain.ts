@@ -3,6 +3,8 @@ import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs';
 import { calcScore } from '../services/scoringEngine.js';
 import { query, close } from '../db.js';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 function zScore(value: number, arr: number[]): number | null {
   if (value === undefined || arr.length === 0) return null;
@@ -14,14 +16,18 @@ function zScore(value: number, arr: number[]): number | null {
 }
 
 export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
-  const argv = yargs(args)
+  try {
+    await ErrorHandler.initialize();
+    const argv = yargs(args)
     .command('$0 <stockNo>', 'stock code')
     .positional('stockNo', { type: 'string', demandOption: true })
     .help()
     .parseSync();
 
   const stockNo = argv.stockNo as string;
+  const spin = ora('計算中...').start();
   const result = await calcScore(stockNo);
+  spin.succeed('計算完成');
 
   const rows: { metric: string; value: number | null; z: number | null; score?: number }[] = [];
 
@@ -48,7 +54,12 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     total: result.total.toFixed(2),
   }));
 
-  close();
+    close();
+  } catch (error) {
+    await ErrorHandler.logError(error as Error, 'explain');
+    console.error('解釋計算失敗:', (error as Error).message);
+    process.exit(1);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

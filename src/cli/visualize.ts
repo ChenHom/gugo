@@ -3,6 +3,8 @@
 import { Visualizer } from '../services/visualizer.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 interface VisualizeArgs {
   type: 'top' | 'distribution' | 'comparison' | 'trend' | 'summary';
@@ -42,7 +44,10 @@ async function main() {
   const visualizer = new Visualizer();
 
   try {
+    await ErrorHandler.initialize();
+    const initSpinner = ora('初始化視覺化工具...').start();
     await visualizer.initialize();
+    initSpinner.succeed('初始化完成');
 
     switch (argv.type) {
       case 'top':
@@ -76,7 +81,8 @@ async function main() {
     }
 
   } catch (error) {
-    console.error('❌ 視覺化錯誤:', error);
+    await ErrorHandler.logError(error as Error, 'visualize');
+    console.error('❌ 視覺化錯誤:', (error as Error).message);
     process.exit(1);
   } finally {
     await visualizer.close();
@@ -85,21 +91,27 @@ async function main() {
 
 async function showTopStocks(visualizer: Visualizer, limit: number) {
   console.log(`🏆 前 ${limit} 名高潛力股票排行榜`);
+  const spin = ora('產生圖表...').start();
   const chartData = await visualizer.generateTopStocksChart(limit);
+  spin.succeed('完成');
   const chart = visualizer.generateASCIIChart(chartData);
   console.log(chart);
 }
 
 async function showDistribution(visualizer: Visualizer) {
   console.log('📊 總分分布圖');
+  const spin = ora('產生圖表...').start();
   const chartData = await visualizer.generateScoreDistributionChart();
+  spin.succeed('完成');
   const chart = visualizer.generateASCIIChart(chartData);
   console.log(chart);
 }
 
 async function showComparison(visualizer: Visualizer, stockNos: string[]) {
   console.log(`📈 多股票因子比較: ${stockNos.join(', ')}`);
+  const spin = ora('產生圖表...').start();
   const chartDataList = await visualizer.generateFactorComparisonChart(stockNos);
+  spin.succeed('完成');
 
   for (const chartData of chartDataList) {
     const chart = visualizer.generateASCIIChart(chartData);
@@ -110,18 +122,24 @@ async function showComparison(visualizer: Visualizer, stockNos: string[]) {
 
 async function showTrend(visualizer: Visualizer, stockNo: string, factor: string) {
   console.log(`📈 ${stockNo} ${factor} 趨勢圖`);
+  const spin = ora('產生圖表...').start();
   const chartData = await visualizer.generateTimeSeriesChart(stockNo, factor);
+  spin.succeed('完成');
   const chart = visualizer.generateASCIIChart(chartData);
   console.log(chart);
 }
 
 async function showSummary(visualizer: Visualizer) {
+  const spin = ora('產生報告...').start();
   const summary = await visualizer.generateSummaryReport();
+  spin.succeed('完成');
   console.log(summary);
 
   // 顯示前10名股票
   console.log('\n🏆 前 10 名高潛力股票:');
+  const topSpin = ora('產生圖表...').start();
   const topChart = await visualizer.generateTopStocksChart(10);
+  topSpin.succeed('完成');
   const chart = visualizer.generateASCIIChart(topChart);
   console.log(chart);
 }
