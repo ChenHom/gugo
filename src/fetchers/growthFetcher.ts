@@ -2,6 +2,7 @@ import { FinMindClient, MonthlyRevenueData } from '../utils/finmindClient.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import pLimit from 'p-limit';
 
 export interface GrowthMetrics {
   stock_id: string;
@@ -213,22 +214,25 @@ export class GrowthFetcher {
   async fetchMultipleStocks(
     stockIds: string[],
     startDate: string,
-    endDate: string
+    endDate: string,
+    concurrency: number = 3
   ): Promise<Map<string, GrowthMetrics[]>> {
     const results = new Map<string, GrowthMetrics[]>();
+    const limit = pLimit(concurrency);
 
-    for (const stockId of stockIds) {
-      try {
-        const metrics = await this.fetchRevenueGrowth(stockId, startDate, endDate);
-        results.set(stockId, metrics);
-
-        // 避免 API 限制，稍微延遲
-        await new Promise(resolve => setTimeout(resolve, 200));
-      } catch (error) {
-        console.error(`❌ 抓取 ${stockId} 失敗:`, error);
-        results.set(stockId, []);
-      }
-    }
+    await Promise.all(
+      stockIds.map(stockId =>
+        limit(async () => {
+          try {
+            const metrics = await this.fetchRevenueGrowth(stockId, startDate, endDate);
+            results.set(stockId, metrics);
+          } catch (error) {
+            console.error(`❌ 抓取 ${stockId} 失敗:`, error);
+            results.set(stockId, []);
+          }
+        })
+      )
+    );
 
     return results;
   }
@@ -239,6 +243,7 @@ export class GrowthFetcher {
   async fetchRevenueData(options: {
     stockNos?: string[];
     useCache?: boolean;
+    concurrency?: number;
   } = {}): Promise<{ success: boolean; data?: GrowthMetrics[]; error?: string }> {
     try {
       const stockIds: string[] = options.stockNos || ['2330', '2317', '2454']; // 預設股票
@@ -246,14 +251,20 @@ export class GrowthFetcher {
       const startDate: string = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
       const allData: GrowthMetrics[] = [];
+      const limit = pLimit(options.concurrency ?? 3);
 
-      for (const stockId of stockIds) {
-        const metrics = await this.fetchRevenueGrowth(stockId, startDate, endDate);
-        allData.push(...metrics);
-
-        // 避免 API 限制
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
+      await Promise.all(
+        stockIds.map(stockId =>
+          limit(async () => {
+            try {
+              const metrics = await this.fetchRevenueGrowth(stockId, startDate, endDate);
+              allData.push(...metrics);
+            } catch (error) {
+              console.error(`❌ 抓取 ${stockId} 失敗:`, error);
+            }
+          })
+        )
+      );
 
       return { success: true, data: allData };
     } catch (error) {

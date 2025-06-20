@@ -30,6 +30,7 @@
     "better-sqlite3": "^9.2.2",
     "node-fetch": "^3.3.2",
     "ora": "^6.3.1",
+    "p-limit": "^4.0.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {

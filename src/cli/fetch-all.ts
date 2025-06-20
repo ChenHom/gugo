@@ -10,48 +10,82 @@ import { ErrorHandler } from '../utils/errorHandler.js';
 export async function run(): Promise<void> {
   await ErrorHandler.initialize();
 
-  try {
-    const valuation = new ValuationFetcher();
-    const valSpinner = ora('抓取估值資料...').start();
-    await valuation.initialize();
-    await valuation.fetchValuationData();
-    await valuation.close();
-    valSpinner.succeed('估值資料完成');
+  const valuation = new ValuationFetcher();
+  const growth = new GrowthFetcher();
+  const quality = new QualityFetcher();
+  const fund = new FundFlowFetcher();
+  const momentum = new MomentumFetcher();
 
-    const growth = new GrowthFetcher();
-    const growthSpinner = ora('抓取成長資料...').start();
-    await growth.initialize();
-    await growth.fetchRevenueData();
-    await growth.fetchEpsData();
-    await growth.close();
-    growthSpinner.succeed('成長資料完成');
+  const tasks = [
+    (async () => {
+      const spinner = ora('抓取估值資料...').start();
+      try {
+        await valuation.initialize();
+        await valuation.fetchValuationData();
+        spinner.succeed('估值資料完成');
+      } catch (err) {
+        spinner.fail('估值資料抓取失敗');
+        await ErrorHandler.logError(err as Error, 'fetch-valuation');
+      } finally {
+        await valuation.close();
+      }
+    })(),
+    (async () => {
+      const spinner = ora('抓取成長資料...').start();
+      try {
+        await growth.initialize();
+        await growth.fetchRevenueData();
+        await growth.fetchEpsData();
+        spinner.succeed('成長資料完成');
+      } catch (err) {
+        spinner.fail('成長資料抓取失敗');
+        await ErrorHandler.logError(err as Error, 'fetch-growth');
+      } finally {
+        await growth.close();
+      }
+    })(),
+    (async () => {
+      const spinner = ora('抓取品質資料...').start();
+      try {
+        await quality.initialize();
+        await quality.fetchQualityMetrics('2330', '2020-01-01');
+        spinner.succeed('品質資料完成');
+      } catch (err) {
+        spinner.fail('品質資料抓取失敗');
+        await ErrorHandler.logError(err as Error, 'fetch-quality');
+      } finally {
+        await quality.close();
+      }
+    })(),
+    (async () => {
+      const spinner = ora('抓取資金流資料...').start();
+      try {
+        await fund.initialize();
+        await fund.fetchFundFlowData();
+        spinner.succeed('資金流資料完成');
+      } catch (err) {
+        spinner.fail('資金流資料抓取失敗');
+        await ErrorHandler.logError(err as Error, 'fetch-fund-flow');
+      } finally {
+        await fund.close();
+      }
+    })(),
+    (async () => {
+      const spinner = ora('抓取動能資料...').start();
+      try {
+        await momentum.initialize();
+        await momentum.fetchMomentumData(['2330']);
+        spinner.succeed('動能資料完成');
+      } catch (err) {
+        spinner.fail('動能資料抓取失敗');
+        await ErrorHandler.logError(err as Error, 'fetch-momentum');
+      } finally {
+        await momentum.close();
+      }
+    })(),
+  ];
 
-    const quality = new QualityFetcher();
-    const qualitySpinner = ora('抓取品質資料...').start();
-    await quality.initialize();
-    await quality.fetchQualityMetrics('2330', '2020-01-01');
-    await quality.close();
-    qualitySpinner.succeed('品質資料完成');
-
-    const fund = new FundFlowFetcher();
-    const fundSpinner = ora('抓取資金流資料...').start();
-    await fund.initialize();
-    await fund.fetchFundFlowData();
-    await fund.close();
-    fundSpinner.succeed('資金流資料完成');
-
-    const momentum = new MomentumFetcher();
-    const momSpinner = ora('抓取動能資料...').start();
-    await momentum.initialize();
-    await momentum.fetchMomentumData(['2330']);
-    await momentum.close();
-    momSpinner.succeed('動能資料完成');
-
-  } catch (error) {
-    await ErrorHandler.logError(error as Error, 'fetch-all');
-    console.error('❌ 抓取資料時發生錯誤');
-    process.exit(1);
-  }
+  await Promise.all(tasks);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
