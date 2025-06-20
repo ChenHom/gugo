@@ -80,6 +80,8 @@ npm run fetch-all
 ```
 
 ## 🎮 使用指南
+更多 CLI 指令請參見 [docs/CLI_USAGE.md](docs/CLI_USAGE.md)
+
 
 ### 初次設定
 
@@ -92,99 +94,6 @@ npm run fetch-all
    # FINMIND_TOKEN=your_token_here
    ```
 
-2. **測試 FinMind API 連線**：
-   ```bash
-   npm run test:finmind
-   ```
-
-### 資料抓取
-
-```bash
-# 抓取所有資料
-npm run fetch-all
-
-# 抓取特定因子資料
-npm run fetch-valuation    # 估值資料
-npm run fetch-growth        # 成長資料（需 FinMind Token）
-npm run fetch-quality       # 品質資料
-npm run fetch-fund-flow     # 資金流資料（需 FinMind Token）
-npm run fetch-momentum      # 動能資料
-```
-
-執行 `npm run fetch-momentum` 後，系統會計算 MA5、MA20、MA60、MACD 與布林通道等指標，
-並寫入 `technical_indicators` 資料表。範例輸出：
-
-```text
-2330: RSI=68.5, MA20=567.32, 月變化=4.2%
-```
-
-### 股票分析
-
-```bash
-# 查看股票排行榜
-npm run rank
-
-# 前 5 檔且分數 >= 70
-npm run rank -- --limit 5 --minScore 70
-
-# 離線模式
-npm run rank -- --offline
-
-# 分析單一股票
-npm run explain 2330
-
-# 自訂權重與計分方法
-npm run rank -- --weights "50,20,15,10,5" --method percentile
-
-```
-
-### 回測
-
-```bash
-# 執行 MA20/60 交叉回測
-npm run backtest -- --stock 00929
-```
-
-### 視覺化分析
-
-```bash
-# 顯示系統摘要
-npm run visualize
-
-# 顯示前20名排行榜
-npm run visualize -- --type top --limit 20
-
-# 顯示分數分佈
-npm run visualize -- --type distribution
-
-# 比較多檔股票
-npm run visualize -- --type comparison --stocks "2330,2454,2317"
-
-# 顯示趨勢圖
-npm run visualize -- --type trend --stocks 2330 --factor valuation
-```
-
-### 資料管理
-
-```bash
-# 更新所有資料
-npm run update
-
-# 強制更新（忽略快取）
-npm run update -- --force
-
-# 更新特定因子
-npm run update -- --factors "valuation,growth"
-
-# 更新特定股票
-npm run update -- --stocks "2330,2454"
-
-# 清理舊資料
-npm run update -- --clean
-
-# 查看更新狀態
-npm run update -- --status
-```
 
 ## 🏗️ 專案架構
 
@@ -261,19 +170,6 @@ src/
 3. **缺失值處理**: 智慧填補缺失資料
 4. **因子合成**: 加權平均計算各因子分數
 5. **總分計算**: 各因子按權重加總得出最終分數
-
-## 🧪 測試
-
-```bash
-# 執行所有測試
-npm test
-
-# 執行測試並查看覆蓋率
-npm run test:coverage
-
-# 執行特定測試
-npm test -- src/services/dataCleaner.test.ts
-```
 
 ## 📈 性能優化
 
@@ -392,19 +288,6 @@ RATE_LIMIT = {
 4. 定期更新資料以保持分析準確性
 
 ## 📝 開發指南
-
-### 程式碼品質
-
-```bash
-# 檢查程式碼風格
-npm run lint
-
-# 自動修正程式碼風格
-npm run lint:fix
-
-# 型別檢查
-npm run typecheck
-```
 
 ### 新增因子
 
