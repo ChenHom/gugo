@@ -14,6 +14,8 @@ import { defaultCache } from '../src/utils/simpleCache.js';
 
 describe('FinMindClient request generation', () => {
   beforeEach(() => {
+    // 清除環境變數，確保無預設 token
+    delete process.env.FINMIND_TOKEN;
     defaultCache.clear();
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
