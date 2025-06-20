@@ -4,6 +4,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { ValuationFetcher } from '../fetchers/valuationFetcher.js';
 import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 const argv = yargs(hideBin(process.argv))
   .option('date', {
@@ -27,10 +28,11 @@ const argv = yargs(hideBin(process.argv))
 async function main(): Promise<void> {
   try {
     await ErrorHandler.initialize();
-    console.log('🚀 開始抓取估值資料...');
+    const initSpinner = ora('🚀 開始抓取估值資料...').start();
 
     const fetcher = new ValuationFetcher();
     await fetcher.initialize();
+    initSpinner.succeed('初始化完成');
 
     const options = {
       date: argv.date,
@@ -38,6 +40,7 @@ async function main(): Promise<void> {
       useCache: !argv['no-cache'],
     };
 
+    const fetchSpinner = ora('抓取資料中...').start();
     const result = await fetcher.fetchValuationData(options);
 
     if (result.success && result.data) {
@@ -50,12 +53,14 @@ async function main(): Promise<void> {
         });
       }
     } else {
-      console.error('❌ 估值資料抓取失敗:', result.error);
+      fetchSpinner.fail('估值資料抓取失敗');
+      await ErrorHandler.logError(new Error(result.error ?? 'unknown'), 'fetch-valuation');
+      console.error('估值資料抓取失敗');
       process.exit(1);
     }
 
+    fetchSpinner.succeed('估值資料抓取完成');
     await fetcher.close();
-    console.log('✅ 估值資料抓取完成');
 
   } catch (error) {
     await ErrorHandler.logError(error as Error, 'fetch-valuation');

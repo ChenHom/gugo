@@ -5,6 +5,8 @@ import { DatabaseManager } from '../utils/databaseManager.js';
 import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 interface Args {
   stocks?: string;
@@ -39,14 +41,17 @@ async function main() {
   const dbManager = new DatabaseManager();
 
   try {
-    console.log('正在初始化資料庫...');
+    await ErrorHandler.initialize();
+    const initSpinner = ora('正在初始化資料庫...').start();
     await dbManager.initialize();
+    initSpinner.succeed('初始化完成');
 
     const stockIds = argv.stocks!.split(',').map(s => s.trim());
-    console.log(`開始抓取 ${stockIds.length} 支股票的${argv.type}資料...`);
+    const startSpinner = ora(`開始抓取 ${stockIds.length} 支股票的${argv.type}資料...`).start();
 
     const fetcher = new PriceFetcher();
     await fetcher.initialize();
+    startSpinner.succeed('開始抓取');
 
     const endDate: string = new Date().toISOString().split('T')[0]!;
     const startDate: string = new Date(Date.now() - argv.days! * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
@@ -56,22 +61,24 @@ async function main() {
 
     for (const stockId of stockIds) {
       try {
-        console.log(`處理股票 ${stockId}...`);
-
         if (argv.type === 'price' || argv.type === 'both') {
+          const priceSpinner = ora(`抓取 ${stockId} 股價資料...`).start();
           const priceData = await fetcher.fetchStockPrice(stockId, startDate, endDate);
           priceCount += priceData.length;
-          console.log(`✅ ${stockId} 股價資料: ${priceData.length} 筆`);
+          priceSpinner.succeed(`${stockId} 股價資料: ${priceData.length} 筆`);
         }
 
         if (argv.type === 'valuation' || argv.type === 'both') {
+          const valSpinner = ora(`抓取 ${stockId} 估值資料...`).start();
           const valuationData = await fetcher.fetchValuation(stockId, startDate, endDate);
           valuationCount += valuationData.length;
-          console.log(`✅ ${stockId} 估值資料: ${valuationData.length} 筆`);
+          valSpinner.succeed(`${stockId} 估值資料: ${valuationData.length} 筆`);
         }
 
       } catch (error) {
-        console.error(`❌ ${stockId} 資料抓取失敗:`, error);
+        ora().fail(`${stockId} 資料抓取失敗`);
+        await ErrorHandler.logError(error as Error, `fetch-price:${stockId}`);
+        console.error(`${stockId} 資料抓取失敗`);
       }
     }
 
@@ -86,7 +93,8 @@ async function main() {
     fetcher.close();
 
   } catch (error) {
-    console.error('❌ 抓取價格資料失敗:', error);
+    await ErrorHandler.logError(error as Error, 'fetch-price');
+    console.error('❌ 抓取價格資料失敗:', (error as Error).message);
     process.exit(1);
   } finally {
     await dbManager.close();

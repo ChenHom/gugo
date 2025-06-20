@@ -5,6 +5,8 @@ import { DatabaseManager } from '../utils/databaseManager.js';
 import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import ora from 'ora';
 
 interface Args {
   stocks?: string;
@@ -31,16 +33,21 @@ async function main() {
   const dbManager = new DatabaseManager();
 
   try {
-    console.log('正在初始化資料庫...');
+    await ErrorHandler.initialize();
+    const initSpinner = ora('正在初始化資料庫...').start();
     await dbManager.initialize();
+    initSpinner.succeed('初始化完成');
 
     const stockIds = argv.stocks!.split(',').map(s => s.trim());
-    console.log(`開始抓取 ${stockIds.length} 支股票的動能資料...`);
+    const startSpinner = ora(`開始抓取 ${stockIds.length} 支股票的動能資料...`).start();
 
     const fetcher = new MomentumFetcher();
     await fetcher.initialize();
+    startSpinner.succeed('開始抓取');
 
+    const fetchSpinner = ora('抓取中...').start();
     const momentumData = await fetcher.fetchMomentumData(stockIds, argv.days);
+    fetchSpinner.succeed('抓取完成');
 
     console.log(`✅ 成功抓取 ${momentumData.length} 筆動能資料`);
 
@@ -58,7 +65,8 @@ async function main() {
     fetcher.close();
 
   } catch (error) {
-    console.error('❌ 抓取動能資料失敗:', error);
+    await ErrorHandler.logError(error as Error, 'fetch-momentum');
+    console.error('❌ 抓取動能資料失敗:', (error as Error).message);
     process.exit(1);
   } finally {
     await dbManager.close();
