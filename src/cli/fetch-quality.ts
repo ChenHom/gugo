@@ -2,19 +2,22 @@
 
 import { QualityFetcher } from '../fetchers/qualityFetcher.js';
 import { DatabaseManager } from '../utils/databaseManager.js';
+import ora from 'ora';
+import { ErrorHandler } from '../utils/errorHandler.js';
 
 async function main() {
   const dbManager = new DatabaseManager();
 
   try {
-    console.log('正在初始化資料庫...');
+    await ErrorHandler.initialize();
+    const initSpinner = ora('正在初始化資料庫...').start();
     await dbManager.initialize();
+    initSpinner.succeed('資料庫初始化完成');
 
-    console.log('開始抓取品質資料...');
+    const fetchSpinner = ora('開始抓取品質資料...').start();
     const fetcher = new QualityFetcher();
     const qualityData = await fetcher.fetchQualityData();
-
-    console.log(`✅ 成功抓取 ${qualityData.length} 筆品質資料`);
+    fetchSpinner.succeed(`成功抓取 ${qualityData.length} 筆品質資料`);
 
     // 顯示部分樣本資料
     if (qualityData.length > 0) {
@@ -26,7 +29,8 @@ async function main() {
     }
 
   } catch (error) {
-    console.error('❌ 抓取品質資料失敗:', error);
+    await ErrorHandler.logError(error as Error, 'fetch-quality');
+    console.error('❌ 抓取品質資料失敗');
     process.exit(1);
   } finally {
     await dbManager.close();

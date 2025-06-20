@@ -3,6 +3,8 @@ import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs';
 import { query } from '../db.js';
 import { calcScore } from '../services/scoringEngine.js';
+import ora from 'ora';
+import { ErrorHandler } from '../utils/errorHandler.js';
 
 export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
   const argv = yargs(args)
@@ -25,19 +27,28 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     }
   }
 
+  await ErrorHandler.initialize();
+
   const rows = query<{ stock_no: string }>('SELECT DISTINCT stock_no FROM valuation');
   const results: any[] = [];
+  const spinner = ora('計算排名中...').start();
 
   for (const r of rows) {
     try {
-      const score = await calcScore(r.stock_no, { weights: weightObj, method: argv.method, window: argv.window });
+      spinner.text = `處理 ${r.stock_no}...`;
+      const score = await calcScore(r.stock_no, {
+        weights: weightObj,
+        method: argv.method as 'zscore' | 'percentile' | 'rolling',
+        window: argv.window,
+      });
       if (score.total >= argv.minScore) {
         results.push({ stockNo: r.stock_no, ...score });
       }
-    } catch {
-      // ignore individual stock errors
+    } catch (err) {
+      await ErrorHandler.logError(err as Error, 'rank');
     }
   }
+  spinner.succeed('計算完成');
 
   results.sort((a, b) => b.total - a.total);
   const top = results.slice(0, argv.limit).map(r => ({

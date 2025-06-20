@@ -3,6 +3,8 @@
 import { DataUpdater, UpdateOptions } from '../services/dataUpdater.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import ora from 'ora';
+import { ErrorHandler } from '../utils/errorHandler.js';
 
 interface UpdateArgs {
   force?: boolean;
@@ -46,7 +48,10 @@ async function main() {
   const updater = new DataUpdater();
 
   try {
+    await ErrorHandler.initialize();
+    const initSpinner = ora('初始化更新器...').start();
     await updater.initialize();
+    initSpinner.succeed('初始化完成');
 
     if (argv.status) {
       await showUpdateStatus(updater);
@@ -60,7 +65,8 @@ async function main() {
     await performUpdate(updater, argv);
 
   } catch (error) {
-    console.error('❌ 更新失敗:', error);
+    await ErrorHandler.logError(error as Error, 'update');
+    console.error('❌ 更新失敗');
     process.exit(1);
   } finally {
     await updater.close();
@@ -83,9 +89,9 @@ async function showUpdateStatus(updater: DataUpdater) {
 }
 
 async function cleanOldData(updater: DataUpdater) {
-  console.log('🗑️  清理舊資料...');
+  const spinner = ora('🗑️  清理舊資料...').start();
   const deletedCount = await updater.cleanOldData(90);
-  console.log(`✅ 已清理 ${deletedCount} 筆舊資料`);
+  spinner.succeed(`已清理 ${deletedCount} 筆舊資料`);
 }
 
 async function performUpdate(updater: DataUpdater, argv: UpdateArgs) {
@@ -95,19 +101,20 @@ async function performUpdate(updater: DataUpdater, argv: UpdateArgs) {
   if (argv.factors) options.factors = argv.factors.split(',');
   if (argv.stocks) options.stocks = argv.stocks.split(',');
 
-  console.log('🔄 開始資料更新...');
+  const spinner = ora('🔄 開始資料更新...').start();
   if (options.force) {
-    console.log('⚡ 強制更新模式 (忽略快取)');
+    spinner.text = '⚡ 強制更新模式 (忽略快取)';
   }
   if (options.factors) {
-    console.log(`📊 更新因子: ${options.factors.join(', ')}`);
+    spinner.text = `📊 更新因子: ${options.factors.join(', ')}`;
   }
   if (options.stocks) {
-    console.log(`🏢 更新股票: ${options.stocks.join(', ')}`);
+    spinner.text = `🏢 更新股票: ${options.stocks.join(', ')}`;
   }
 
   const results = await updater.updateAllData(options);
 
+  spinner.succeed('資料更新完成');
   console.log('\n📊 更新結果摘要:');
   console.log('================');
 

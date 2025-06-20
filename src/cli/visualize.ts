@@ -3,6 +3,8 @@
 import { Visualizer } from '../services/visualizer.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import ora from 'ora';
+import { ErrorHandler } from '../utils/errorHandler.js';
 
 interface VisualizeArgs {
   type: 'top' | 'distribution' | 'comparison' | 'trend' | 'summary';
@@ -41,42 +43,61 @@ async function main() {
 
   const visualizer = new Visualizer();
 
+  await ErrorHandler.initialize();
+  const initSpinner = ora('初始化視覺化工具...').start();
+
   try {
     await visualizer.initialize();
+    initSpinner.succeed('初始化完成');
 
     switch (argv.type) {
-      case 'top':
+      case 'top': {
+        const spinner = ora('生成排行榜...').start();
         await showTopStocks(visualizer, argv.limit || 20);
+        spinner.succeed('完成');
         break;
+      }
 
-      case 'distribution':
+      case 'distribution': {
+        const spinner = ora('生成分布圖...').start();
         await showDistribution(visualizer);
+        spinner.succeed('完成');
         break;
+      }
 
-      case 'comparison':
+      case 'comparison': {
         if (!argv.stocks) {
           console.error('❌ 比較圖表需要指定股票代號 (--stocks)');
           process.exit(1);
         }
+        const cmpSpinner = ora('生成比較圖...').start();
         await showComparison(visualizer, argv.stocks.split(','));
+        cmpSpinner.succeed('完成');
         break;
+      }
 
-      case 'trend':
+      case 'trend': {
         if (!argv.stocks || !argv.factor) {
           console.error('❌ 趨勢圖表需要指定股票代號 (--stocks) 和因子 (--factor)');
           process.exit(1);
         }
+        const trendSpinner = ora('生成趨勢圖...').start();
         await showTrend(visualizer, argv.stocks.split(',')[0]!, argv.factor!);
+        trendSpinner.succeed('完成');
         break;
+      }
 
       case 'summary':
-      default:
+      default: {
+        const spinner = ora('生成摘要...').start();
         await showSummary(visualizer);
+        spinner.succeed('完成');
         break;
+      }
     }
-
   } catch (error) {
-    console.error('❌ 視覺化錯誤:', error);
+    await ErrorHandler.logError(error as Error, 'visualize');
+    console.error('❌ 視覺化錯誤');
     process.exit(1);
   } finally {
     await visualizer.close();

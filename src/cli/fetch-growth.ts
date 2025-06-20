@@ -2,6 +2,7 @@
 
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import ora from 'ora';
 import { GrowthFetcher } from '../fetchers/growthFetcher.js';
 import { ErrorHandler } from '../utils/errorHandler.js';
 import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
@@ -30,10 +31,11 @@ const argv = yargs(hideBin(process.argv))
 async function main(): Promise<void> {
   try {
     await ErrorHandler.initialize();
-    console.log('🚀 Starting growth data fetch...');
+    const initSpinner = ora('🚀 Starting growth data fetch...').start();
 
     const fetcher = new GrowthFetcher();
     await fetcher.initialize();
+    initSpinner.succeed('Initialization complete');
 
     const stockList = argv.stocks
       ? argv.stocks.split(',').map((s: string) => s.trim())
@@ -46,26 +48,30 @@ async function main(): Promise<void> {
     let totalRecords = 0;
 
     if (argv.type === 'revenue' || argv.type === 'both') {
-      console.log('📈 抓取營收資料...');
+      const revenueSpinner = ora('📈 抓取營收資料...').start();
       const revenueResult = await fetcher.fetchRevenueData(options);
 
       if (revenueResult.success && revenueResult.data) {
         totalRecords += revenueResult.data.length;
-        console.log(`✅ 成功抓取 ${revenueResult.data.length} 筆營收記錄`);
+        revenueSpinner.succeed(`成功抓取 ${revenueResult.data.length} 筆營收記錄`);
       } else {
-        console.error('❌ 營收資料抓取失敗:', revenueResult.error);
+        revenueSpinner.fail('營收資料抓取失敗');
+        await ErrorHandler.logError(new Error(revenueResult.error || 'Unknown error'), 'fetch-growth revenue');
+        console.log('營收資料抓取失敗，詳情請查看日誌');
       }
     }
 
     if (argv.type === 'eps' || argv.type === 'both') {
-      console.log('💰 抓取EPS資料...');
+      const epsSpinner = ora('💰 抓取EPS資料...').start();
       const epsResult = await fetcher.fetchEpsData(options);
 
       if (epsResult.success && epsResult.data) {
         totalRecords += epsResult.data.length;
-        console.log(`✅ 成功抓取 ${epsResult.data.length} 筆EPS記錄`);
+        epsSpinner.succeed(`成功抓取 ${epsResult.data.length} 筆EPS記錄`);
       } else {
-        console.error('❌ EPS資料抓取失敗:', epsResult.error);
+        epsSpinner.fail('EPS資料抓取失敗');
+        await ErrorHandler.logError(new Error(epsResult.error || 'Unknown error'), 'fetch-growth eps');
+        console.log('EPS資料抓取失敗，詳情請查看日誌');
       }
     }
 

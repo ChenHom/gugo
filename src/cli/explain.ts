@@ -3,6 +3,8 @@ import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs';
 import { calcScore } from '../services/scoringEngine.js';
 import { query, close } from '../db.js';
+import ora from 'ora';
+import { ErrorHandler } from '../utils/errorHandler.js';
 
 function zScore(value: number, arr: number[]): number | null {
   if (value === undefined || arr.length === 0) return null;
@@ -21,7 +23,20 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     .parseSync();
 
   const stockNo = argv.stockNo as string;
-  const result = await calcScore(stockNo);
+
+  await ErrorHandler.initialize();
+  const spinner = ora(`計算 ${stockNo} 分數中...`).start();
+  let result: Awaited<ReturnType<typeof calcScore>>;
+  try {
+    result = await calcScore(stockNo);
+    spinner.succeed('計算完成');
+  } catch (error) {
+    spinner.fail('計算失敗');
+    await ErrorHandler.logError(error as Error, 'explain');
+    console.error('❌ 計算失敗');
+    process.exit(1);
+    return;
+  }
 
   const rows: { metric: string; value: number | null; z: number | null; score?: number }[] = [];
 
