@@ -30,7 +30,11 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
 
   for (const r of rows) {
     try {
-      const score = await calcScore(r.stock_no, { weights: weightObj, method: argv.method, window: argv.window });
+      const score = await calcScore(r.stock_no, {
+        weights: weightObj,
+        method: argv.method as 'zscore' | 'percentile' | 'rolling',
+        window: argv.window,
+      });
       if (score.total >= argv.minScore) {
         results.push({ stockNo: r.stock_no, ...score });
       }

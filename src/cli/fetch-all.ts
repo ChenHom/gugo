@@ -7,30 +7,64 @@ import { MomentumFetcher } from '../fetchers/momentumFetcher.js';
 
 export async function run(): Promise<void> {
   const valuation = new ValuationFetcher();
-  await valuation.initialize();
-  await valuation.fetchValuationData();
-  await valuation.close();
-
   const growth = new GrowthFetcher();
-  await growth.initialize();
-  await growth.fetchRevenueData();
-  await growth.fetchEpsData();
-  await growth.close();
-
   const quality = new QualityFetcher();
-  await quality.initialize();
-  await quality.fetchQualityMetrics('2330', '2020-01-01');
-  await quality.close();
-
   const fund = new FundFlowFetcher();
-  await fund.initialize();
-  await fund.fetchFundFlowData();
-  await fund.close();
-
   const momentum = new MomentumFetcher();
-  await momentum.initialize();
-  await momentum.fetchMomentumData(['2330']);
-  await momentum.close();
+
+  await Promise.all([
+    (async () => {
+      try {
+        await valuation.initialize();
+        await valuation.fetchValuationData();
+      } catch (err) {
+        console.error('Valuation fetcher failed:', err);
+      } finally {
+        await valuation.close();
+      }
+    })(),
+    (async () => {
+      try {
+        await growth.initialize();
+        await growth.fetchRevenueData();
+        await growth.fetchEpsData();
+      } catch (err) {
+        console.error('Growth fetcher failed:', err);
+      } finally {
+        await growth.close();
+      }
+    })(),
+    (async () => {
+      try {
+        await quality.initialize();
+        await quality.fetchQualityMetrics('2330', '2020-01-01');
+      } catch (err) {
+        console.error('Quality fetcher failed:', err);
+      } finally {
+        await quality.close();
+      }
+    })(),
+    (async () => {
+      try {
+        await fund.initialize();
+        await fund.fetchFundFlowData();
+      } catch (err) {
+        console.error('Fund flow fetcher failed:', err);
+      } finally {
+        await fund.close();
+      }
+    })(),
+    (async () => {
+      try {
+        await momentum.initialize();
+        await momentum.fetchMomentumData(['2330']);
+      } catch (err) {
+        console.error('Momentum fetcher failed:', err);
+      } finally {
+        await momentum.close();
+      }
+    })(),
+  ]);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

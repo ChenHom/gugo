@@ -350,7 +350,7 @@ export class PriceFetcher {
     let prev = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
     ema.push(prev);
     for (let i = period; i < prices.length; i++) {
-      const price = prices[i];
+      const price = prices[i]!;
       prev = price * k + prev * (1 - k);
       ema.push(prev);
     }
@@ -369,8 +369,8 @@ export class PriceFetcher {
     const diff: number[] = [];
     const offset = longPeriod - shortPeriod;
     for (let i = 0; i < emaLong.length; i++) {
-      const shortVal = emaShort[i + offset];
-      const longVal = emaLong[i];
+      const shortVal = emaShort[i + offset]!;
+      const longVal = emaLong[i]!;
       diff.push(shortVal - longVal);
     }
 
@@ -386,7 +386,7 @@ export class PriceFetcher {
 
     for (let i = period - 1; i < prices.length; i++) {
       const slice = prices.slice(i - period + 1, i + 1);
-      const mean = middle[i - period + 1];
+      const mean = middle[i - period + 1]!;
       const variance = slice.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / period;
       const std = Math.sqrt(variance);
       upper.push(mean + 2 * std);
