@@ -80,10 +80,16 @@ npm run explain 2330
 npm run visualize -- --type distribution
 ```
 
-- `npm run backtest`：執行簡易回測，例如 MA20/60 交叉策略。
+- `npm run backtest`：以每日排名建構投資組合進行回測，可調整起始日期、持有數量、再平衡週期與權重模式。
 
 ```bash
-npm run backtest -- --stock 2330
+npm run backtest -- --start 2018-01-01 --top 10 --rebalance 21 --mode equal
+```
+
+- `npm run walk-forward`：執行滾動視窗的 Walk‑Forward 分析，除 backtest 參數外還可設定 `--window` (年) 與 `--step` (月)。
+
+```bash
+npm run walk-forward -- --start 2018-01-01 --top 10 --rebalance 21 --window 3 --step 1
 ```
 
 - `npm run update`：更新資料庫，可指定因子或股票，使用 `--force` 可忽略快取。

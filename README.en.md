@@ -20,22 +20,6 @@ A comprehensive TypeScript tool that ranks Taiwan-listed equities by analyzing m
 npm install
 ```
 
-### Basic Usage
-
-```bash
-# Fetch all data
-npm run fetch-all
-
-# Get top-ranked stocks
-npm run rank
-
-# Analyze specific stock
-npm run explain 2330
-
-# Fetch specific data types
-npm run fetch-valuation
-npm run fetch-growth
-```
 
 ## 📊 Scoring System
 
@@ -57,88 +41,7 @@ Total Score = 40% Valuation + 25% Growth + 15% Quality + 10% Fund-flow + 10% Mom
 
 ## 💻 CLI Commands
 
-### Data Fetching
-
-```bash
-# Fetch all data types
-npm run fetch-all
-
-# Fetch valuation data for specific date
-npm run fetch-valuation -- --date 2025-06-17
-
-# Fetch growth data for specific stocks
-npm run fetch-growth -- --stocks 2330,2454 --type revenue
-
-# Skip cache and fetch fresh data
-npm run fetch-valuation -- --no-cache
-```
-
-### Stock Analysis
-
-```bash
-# Rank all stocks (default: min score 70, limit 30)
-npm run rank
-
-# Custom ranking criteria
-npm run rank -- --minScore 80 --limit 10
-
-# Export to different formats
-npm run rank -- --export json > results.json
-npm run rank -- --export csv > results.csv
-
-# Use custom factor weights (valuation,growth,quality,fund,momentum)
-npm run rank -- --weights "50,20,15,10,5"
-
-# Analyze specific stocks only
-npm run rank -- --stocks 2330,2454,0050
-```
-
-### Individual Stock Analysis
-
-```bash
-# Detailed analysis of a specific stock
-npm run explain 2330
-```
-
-### Backtesting
-
-```bash
-npm run backtest -- --stock 00929
-```
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test -- dataCleaner.test.ts
-```
-
-## 🔧 Development
-
-### Type Checking
-
-```bash
-npm run typecheck
-```
-
-### Linting
-
-```bash
-npm run lint
-npm run lint:fix
-```
-
-### Building
-
-```bash
-npm run build
-```
+All `npm run` command usage is documented in [docs/cli_usage.md](docs/cli_usage.md).
 
 ## 📁 Project Structure
 

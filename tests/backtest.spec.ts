@@ -1,47 +1,62 @@
 import { describe, it, expect } from 'vitest';
-import { backtestMA } from '../src/backtest/maStrategy.js';
-import { backtestMulti, TopNStrategy } from '../src/backtest/multiStrategy.js';
+import { buildPortfolios, RankRow } from '../src/services/portfolioBuilder.js';
+import { backtest } from '../src/services/backtest.js';
+import { CostModel } from '../src/models/CostModel.js';
 
-type Price = { date: string; close: number };
-
-function genData(): Price[] {
-  const res: Price[] = [];
-  const start = new Date('2023-01-01');
-  for (let i = 0; i < 60; i++) {
-    const d = new Date(start.getTime() + i * 86400000);
-    res.push({ date: d.toISOString().split('T')[0]!, close: 10 });
-  }
-  for (let i = 60; i < 70; i++) {
-    const d = new Date(start.getTime() + i * 86400000);
-    res.push({ date: d.toISOString().split('T')[0]!, close: 12 });
-  }
-  const d71 = new Date(start.getTime() + 70 * 86400000);
-  res.push({ date: d71.toISOString().split('T')[0]!, close: 11 });
-  const d72 = new Date(start.getTime() + 71 * 86400000);
-  res.push({ date: d72.toISOString().split('T')[0]!, close: 7 });
-  for (let i = 72; i < 120; i++) {
-    const d = new Date(start.getTime() + i * 86400000);
-    res.push({ date: d.toISOString().split('T')[0]!, close: 7 });
-  }
-  return res;
-}
-
-describe('MA backtest', () => {
-  it('executes trades based on rules', async () => {
-    const prices = genData();
-    const res = await backtestMA('TEST', { prices });
-    expect(res.trades.length).toBe(2);
-    expect(res.equityCurve[res.equityCurve.length - 1]).toBeLessThan(100);
+describe('portfolioBuilder', () => {
+  it('builds equal weights', () => {
+    const ranks: RankRow[] = [
+      { date: '2020-01-01', stock: 'A', score: 2 },
+      { date: '2020-01-01', stock: 'B', score: 1 },
+    ];
+    const res = buildPortfolios(ranks, { top: 2, mode: 'equal' });
+    expect(res['2020-01-01']!.A).toBeCloseTo(0.5);
+    expect(res['2020-01-01']!.B).toBeCloseTo(0.5);
   });
 });
 
-describe('multi-strategy backtest', () => {
-  it('runs top-n strategy', () => {
-    const series = genData();
-    const prices = { AAA: series, BBB: series.map(p => ({ ...p, close: p.close * 1.1 })) };
-    const scores = { AAA: series.map((_, i) => (i < 60 ? 1 : 2)), BBB: series.map(() => 3) };
-    const strategy = new TopNStrategy(scores, 1);
-    const res = backtestMulti(prices, strategy, { rebalance: 20 });
-    expect(res.trades.length).toBeGreaterThan(0);
+describe('backtest engine', () => {
+  const prices = { A: [{ date: '2020-01-01', close: 1 }, { date: '2020-01-02', close: 1 }] };
+  const ranks: RankRow[] = [
+    { date: '2020-01-01', stock: 'A', score: 1 },
+  ];
+  it('produces correct equity for single stock', () => {
+    const cm = new CostModel(0, 0, 0);
+    const res = backtest(ranks, prices, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal', costModel: cm });
+    expect(res.equity[res.equity.length - 1]).toBeCloseTo(1, 6);
+  });
+
+  it('applies transaction costs', () => {
+    const res = backtest(ranks, prices, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal' });
+    expect(res.equity[res.equity.length - 1]).toBeLessThan(1);
+  });
+
+  it('sells on empty portfolio', () => {
+    const r2: RankRow[] = [
+      { date: '2020-01-01', stock: 'A', score: 1 },
+      { date: '2020-01-02', stock: 'A', score: 0 },
+    ];
+    const res = backtest(r2, prices, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal', costModel: new CostModel(0,0,0) });
+    expect(res.equity.length).toBe(2);
+  });
+});
+
+describe('portfolioBuilder cap mode', () => {
+  it('uses market cap weights', () => {
+    const ranks: RankRow[] = [
+      { date: '2020-01-01', stock: 'A', score: 2, marketCap: 200 },
+      { date: '2020-01-01', stock: 'B', score: 1, marketCap: 100 },
+    ];
+    const res = buildPortfolios(ranks, { top: 2, mode: 'cap' });
+    expect(res['2020-01-01']!.A).toBeCloseTo(2 / 3);
+    expect(res['2020-01-01']!.B).toBeCloseTo(1 / 3);
+  });
+});
+
+describe('cost model', () => {
+  it('calculates buy and sell prices', () => {
+    const cm = new CostModel(0.001, 0.002, 0.001);
+    expect(cm.buy(100)).toBeCloseTo(100 * 1.001 * 1.001);
+    expect(cm.sell(100)).toBeCloseTo(100 * 0.999 * (1 - 0.001 - 0.002));
   });
 });
