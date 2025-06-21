@@ -41,7 +41,7 @@ export function walkForward(
       Object.fromEntries(
         Object.entries(prices).map(([s, arr]) => [s, arr.filter(p => p.date >= winStart && p.date <= winEnd)])
       ),
-      { ...opts, start: winStart }
+      { ...opts, start: winStart, end: winEnd }
     );
     results.push({ start: winStart, end: winEnd, cagr: res.cagr, sharpe: res.sharpe, mdd: res.mdd });
     winStart = addMonths(winStart, opts.stepMonths);

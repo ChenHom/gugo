@@ -2,10 +2,11 @@ export function meanVarianceOptimize(expected: number[], cov: number[][]): numbe
   const n = expected.length;
   const inv: number[][] = invertMatrix(cov);
   const w: number[] = new Array(n).fill(0);
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      w[i] += inv[i][j] * expected[j]!;
-    }
+    for (let i = 0; i < n; i++) {
+      const invRow = inv[i]!;
+      for (let j = 0; j < n; j++) {
+        w[i] = (w[i] ?? 0) + invRow[j]! * expected[j]!;
+      }
   }
   const sum = w.reduce((a, b) => a + b, 0);
   return w.map(x => x / sum);
@@ -21,33 +22,38 @@ export function riskParity(cov: number[][]): number[] {
 
 function invertMatrix(a: number[][]): number[][] {
   const n = a.length;
-  const id = Array.from({ length: n }, (_, i) =>
+  const id: number[][] = Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
   );
   const m = a.map(row => row.slice());
   for (let i = 0; i < n; i++) {
-    let pivot = m[i][i];
+    const row = m[i]!;
+    let pivot = row[i]!;
     if (pivot === 0) {
       for (let j = i + 1; j < n; j++) {
-        if (m[j][i] !== 0) {
-          [m[i], m[j]] = [m[j], m[i]];
-          [id[i], id[j]] = [id[j], id[i]];
-          pivot = m[i][i];
+        const rowJ = m[j]!;
+        if (rowJ[i]! !== 0) {
+          m[i] = rowJ;
+          m[j] = row;
+          const tmpId = id[i]!;
+          id[i] = id[j]!;
+          id[j] = tmpId;
+          pivot = m[i]![i]!;
           break;
         }
       }
     }
     if (pivot === 0) throw new Error('Singular matrix');
     for (let j = 0; j < n; j++) {
-      m[i][j] /= pivot;
-      id[i][j] /= pivot;
+      m[i]![j]! /= pivot;
+      id[i]![j]! /= pivot;
     }
     for (let k = 0; k < n; k++) {
       if (k === i) continue;
-      const factor = m[k][i];
+      const factor = m[k]![i]!;
       for (let j = 0; j < n; j++) {
-        m[k][j] -= factor * m[i][j];
-        id[k][j] -= factor * id[i][j];
+        m[k]![j] = m[k]![j]! - factor * m[i]![j]!;
+        id[k]![j] = id[k]![j]! - factor * id[i]![j]!;
       }
     }
   }

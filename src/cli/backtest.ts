@@ -7,7 +7,8 @@ import { backtestMA } from '../backtest/maStrategy.js';
 import { backtestMulti, TopNStrategy, ThresholdStrategy } from '../backtest/multiStrategy.js';
 import { RankRow } from '../services/portfolioBuilder.js';
 import { backtest } from '../services/backtest.js';
-import { CostModel } from '../models/CostModel.js';
+import { CostModel, DEFAULT_BROKERAGE, DEFAULT_TAX, DEFAULT_SLIPPAGE } from '../models/CostModel.js';
+import fs from 'fs';
 import { ErrorHandler } from '../utils/errorHandler.js';
 
 export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
@@ -24,8 +25,12 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
       .option('threshold', { type: 'number', default: 70 })
       .option('rebalance', { type: 'number', default: 20 })
       .option('start', { type: 'string' })
+      .option('end', { type: 'string' })
       .option('top', { type: 'number', default: 10 })
       .option('mode', { choices: ['equal', 'cap'] as const, default: 'equal' })
+      .option('cost', { type: 'number', default: DEFAULT_BROKERAGE })
+      .option('fee', { type: 'number', default: DEFAULT_TAX })
+      .option('slip', { type: 'number', default: DEFAULT_SLIPPAGE })
       .help()
       .parseSync();
 
@@ -41,7 +46,6 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     }
 
     if (argv.strategy === 'rank') {
-      if (!argv.start) throw new Error('start date required for rank strategy');
       const scoreRows = query<any>(
         'SELECT date, stock_no, total_score, market_value FROM stock_scores ORDER BY date'
       );
@@ -57,20 +61,27 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
       const prices: Record<string, { date: string; close: number }[]> = {};
       for (const row of priceRows) {
         if (!prices[row.stock_no]) prices[row.stock_no] = [];
-        prices[row.stock_no].push({ date: row.date, close: row.close });
+        prices[row.stock_no]!.push({ date: row.date, close: row.close });
       }
+      const allDates = priceRows.map((r: any) => r.date).sort();
+      const start = argv.start ?? allDates[0];
+      const end = argv.end ?? allDates[allDates.length - 1];
       const spin = ora('執行回測...').start();
       const res = backtest(ranks, prices, {
-        start: argv.start,
+        start,
+        end,
         rebalance: argv.rebalance,
         top: argv.top,
-        mode: argv.mode,
-        costModel: new CostModel(),
+        mode: argv.mode as 'equal' | 'cap',
+        costModel: new CostModel(argv.cost, argv.fee, argv.slip),
       });
       spin.succeed('回測完成');
       console.log(`CAGR: ${(res.cagr * 100).toFixed(2)}%`);
       console.log(`Sharpe: ${res.sharpe.toFixed(2)}`);
       console.log(`MDD: ${(res.mdd * 100).toFixed(2)}%`);
+      const file = `backtest_${new Date().toISOString().slice(0,10)}.json`;
+      fs.writeFileSync(file, JSON.stringify(res, null, 2));
+      console.log(`結果已儲存至 ${file}`);
       return;
     }
 
@@ -80,7 +91,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     const prices: Record<string, { date: string; close: number }[]> = {};
     for (const row of priceRows) {
       if (!prices[row.stock_no]) prices[row.stock_no] = [];
-      prices[row.stock_no].push({ date: row.date, close: row.close });
+        prices[row.stock_no]!.push({ date: row.date, close: row.close });
     }
 
     const scoreRows = query<any>(
@@ -89,7 +100,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     const scores: Record<string, number[]> = {};
     for (const r of scoreRows) {
       if (!scores[r.stock_no]) scores[r.stock_no] = [];
-      scores[r.stock_no].push(r.total_score);
+        scores[r.stock_no]!.push(r.total_score);
     }
 
     let strategy;

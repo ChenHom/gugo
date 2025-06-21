@@ -17,8 +17,8 @@ export async function run(): Promise<void> {
 
   await Promise.all([
     (async () => {
+      const spin = ora('Valuation').start();
       try {
-        const spin = ora('Valuation').start();
         await valuation.initialize();
         await valuation.fetchValuationData();
         spin.succeed('Valuation 完成');
@@ -31,8 +31,8 @@ export async function run(): Promise<void> {
       }
     })(),
     (async () => {
+      const spin = ora('Growth').start();
       try {
-        const spin = ora('Growth').start();
         await growth.initialize();
         await growth.fetchRevenueData();
         await growth.fetchEpsData();
@@ -46,8 +46,8 @@ export async function run(): Promise<void> {
       }
     })(),
     (async () => {
+      const spin = ora('Quality').start();
       try {
-        const spin = ora('Quality').start();
         await quality.initialize();
         await quality.fetchQualityMetrics('2330', '2020-01-01');
         spin.succeed('Quality 完成');
@@ -60,8 +60,8 @@ export async function run(): Promise<void> {
       }
     })(),
     (async () => {
+      const spin = ora('Fund flow').start();
       try {
-        const spin = ora('Fund flow').start();
         await fund.initialize();
         await fund.fetchFundFlowData();
         spin.succeed('Fund flow 完成');
@@ -74,8 +74,8 @@ export async function run(): Promise<void> {
       }
     })(),
     (async () => {
+      const spin = ora('Momentum').start();
       try {
-        const spin = ora('Momentum').start();
         await momentum.initialize();
         await momentum.fetchMomentumData(['2330']);
         spin.succeed('Momentum 完成');

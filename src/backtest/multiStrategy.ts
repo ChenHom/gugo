@@ -38,6 +38,7 @@ export class SectorRotationStrategy implements Strategy {
     const sectors = new Map<string, { sec: string; mo: number }>();
     for (const [stock, arr] of Object.entries(this.momentum)) {
       const sec = this.sectorMap[stock];
+      if (!sec) continue;
       const mo = arr[i] ?? -Infinity;
       const item = sectors.get(sec);
       if (!item || item.mo < mo) sectors.set(sec, { sec, mo });
