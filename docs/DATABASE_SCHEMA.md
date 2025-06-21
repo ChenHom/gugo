@@ -134,6 +134,25 @@
 | bb_middle | REAL | 布林通道中軌 | 448.7 |
 | bb_lower | REAL | 布林通道下軌 | 437.3 |
 
+#### `momentum_metrics` - 動能指標表
+記錄相對強弱、均線位置等動能相關數據
+
+| 欄位名 | 型別 | 說明 | 範例 |
+|--------|------|------|------|
+| stock_no | TEXT | 股票代號 | "2330" |
+| date | DATE | 交易日期 | "2023-06-15" |
+| ma_5 | REAL | 5日移動平均線 (元) | 451.2 |
+| ma_20 | REAL | 20日移動平均線 (元) | 448.7 |
+| ma_60 | REAL | 60日移動平均線 (元) | 445.3 |
+| rsi | REAL | RSI相對強弱指標 (0-100) | 67.8 |
+| macd | REAL | MACD指標 | 2.15 |
+| bb_upper | REAL | 布林通道上軌 | 460.1 |
+| bb_middle | REAL | 布林通道中軌 | 448.7 |
+| bb_lower | REAL | 布林通道下軌 | 437.3 |
+| price_change_1m | REAL | 一個月報酬率 (%) | 5.1 |
+| relative_strength_52w | REAL | 52 週相對強弱 (%) | 12.3 |
+| ma20_above_ma60_days | INTEGER | MA20 高於 MA60 天數 | 40 |
+
 ### 🛠 系統管理表
 
 #### `migration_history` - 資料庫遷移紀錄表
@@ -166,6 +185,7 @@
 - `idx_cash_flow_date` - 現金流量表日期索引
 - `idx_dividend_policy_year` - 股利政策表年度索引
 - `idx_technical_indicators_date` - 技術指標表日期索引
+- `idx_momentum_metrics_date` - 動能指標表日期索引
 
 ## 資料來源對應
 
