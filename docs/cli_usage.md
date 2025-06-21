@@ -48,7 +48,8 @@ npm run fetch-quality
 npm run fetch-fund-flow -- --stocks 2330 --start-date 2024-01-01
 ```
 
-- `npm run fetch-momentum`：抓取 RSI、移動平均等動能指標。
+
+- `npm run fetch-momentum`：抓取 RSI、移動平均等動能指標，預設會下載三檔範例股票。
 
 ```bash
 npm run fetch-momentum -- --stocks 2330,2317 --days 60
