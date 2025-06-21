@@ -9,3 +9,4 @@ export * from './services/dataTransformer.js';
 export * from './services/scoringEngine.js';
 export * from './fetchers/valuationFetcher.js';
 export * from './fetchers/growthFetcher.js';
+export * from './models/LiquiditySizer.js';
