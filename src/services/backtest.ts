@@ -1,5 +1,5 @@
 import { CostModel } from '../models/CostModel.js';
-import { buildPortfolios, RankRow, PortfolioOptions, WeightMap } from './portfolioBuilder.js';
+import { buildPortfolios, RankRow, PortfolioOptions } from './portfolioBuilder.js';
 import { annualizeReturn, calcReturns, calcSharpe, maxDrawdown } from '../analysis/performanceReport.js';
 
 export interface PriceBar { date: string; close: number }
