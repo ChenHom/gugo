@@ -23,7 +23,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
       })
       .option('n', { type: 'number', default: 5 })
       .option('threshold', { type: 'number', default: 70 })
-      .option('rebalance', { type: 'number', default: 20 })
+      .option('rebalance', { type: 'number', default: 21 })
       .option('start', { type: 'string' })
       .option('end', { type: 'string' })
       .option('top', { type: 'number', default: 10 })
@@ -91,7 +91,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     const prices: Record<string, { date: string; close: number }[]> = {};
     for (const row of priceRows) {
       if (!prices[row.stock_no]) prices[row.stock_no] = [];
-        prices[row.stock_no]!.push({ date: row.date, close: row.close });
+      prices[row.stock_no]!.push({ date: row.date, close: row.close });
     }
 
     const scoreRows = query<any>(
@@ -100,7 +100,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     const scores: Record<string, number[]> = {};
     for (const r of scoreRows) {
       if (!scores[r.stock_no]) scores[r.stock_no] = [];
-        scores[r.stock_no]!.push(r.total_score);
+      scores[r.stock_no]!.push(r.total_score);
     }
 
     let strategy;

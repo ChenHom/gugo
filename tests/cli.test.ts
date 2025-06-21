@@ -18,6 +18,7 @@ async function setupTestDb(): Promise<string> {
     CREATE TABLE quality (stock_no TEXT, year INTEGER, roe REAL, gross_margin REAL, op_margin REAL);
     CREATE TABLE fundflow (stock_no TEXT, date TEXT, foreign_net REAL, inv_trust_net REAL);
     CREATE TABLE price_daily (stock_no TEXT, date TEXT, close REAL);
+    CREATE TABLE stock_scores (stock_no TEXT, date TEXT, total_score REAL, market_value REAL);
     `
   );
   const insV = db.prepare('INSERT INTO valuation VALUES (?, ?, ?, ?, ?)');
@@ -25,6 +26,7 @@ async function setupTestDb(): Promise<string> {
   const insQ = db.prepare('INSERT INTO quality VALUES (?, ?, ?, ?, ?)');
   const insC = db.prepare('INSERT INTO fundflow VALUES (?, ?, ?, ?)');
   const insM = db.prepare('INSERT INTO price_daily VALUES (?, ?, ?)');
+  const insS = db.prepare('INSERT INTO stock_scores VALUES (?, ?, ?, ?)');
   // Insert two stocks A and B
   for (const [code, val] of [['A', 1], ['B', 2]]) {
     insV.run(code, '2021-01-01', val * 10, val, val);
@@ -32,6 +34,7 @@ async function setupTestDb(): Promise<string> {
     insQ.run(code, 2021, val, val, val);
     insC.run(code, '2021-01-01', val, val);
     insM.run(code, '2021-01-01', val);
+    insS.run(code, '2021-01-01', val, val * 100);
   }
   db.close();
   return dbFile;
@@ -101,5 +104,55 @@ describe('CLI explain command', () => {
     expect(subLine).toBeDefined();
     tableMock.mockRestore();
     logMock.mockRestore();
+  });
+});
+
+describe('CLI backtest command', () => {
+  let dbFile: string;
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    dbFile = await setupTestDb();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-bt-'));
+  });
+
+  afterEach(async () => {
+    const { close } = await import('../src/db.js');
+    close();
+    if (fs.existsSync(dbFile)) fs.unlinkSync(dbFile);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('runs backtest and writes output file', async () => {
+    const { run } = await import('../src/cli/backtest.js');
+    const logMock = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const origWrite = fs.writeFileSync;
+    const writeSpy = vi
+      .spyOn(fs, 'writeFileSync')
+      .mockImplementation((file, data) => {
+        const p = path.join(tmpDir, path.basename(file as string));
+        origWrite(p, data as string | NodeJS.ArrayBufferView);
+      });
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit');
+    });
+    await run([
+      '--strategy',
+      'rank',
+      '--start',
+      '2021-01-01',
+      '--rebalance',
+      '1',
+      '--top',
+      '1',
+    ]);
+    logMock.mockRestore();
+    writeSpy.mockRestore();
+    exitSpy.mockRestore();
+    const file = `backtest_${new Date().toISOString().slice(0, 10)}.json`;
+    expect(fs.existsSync(path.join(tmpDir, file))).toBe(true);
+    const data = JSON.parse(fs.readFileSync(path.join(tmpDir, file), 'utf8'));
+    expect(Array.isArray(data.dates)).toBe(true);
   });
 });
