@@ -7,6 +7,7 @@ A comprehensive TypeScript tool that ranks Taiwan-listed equities by analyzing m
 - **Multi-Factor Analysis**: Combines 5 key investment factors with customizable weights
 - **Real-time Data**: Fetches latest data from FinMind API with fallback to TWSE OpenAPI
 - **Smart Caching**: Local caching with automatic expiration and cleanup
+- **Liquidity Sizing**: Caps each position at 10% of average daily volume
 - **Data Quality**: Built-in data cleaning and validation
 - **CLI Interface**: Easy-to-use command-line tools
 - **Comprehensive Testing**: 90%+ test coverage with Vitest
