@@ -81,10 +81,10 @@ npm run explain 2330
 npm run visualize -- --type distribution
 ```
 
-- `npm run backtest`：以每日排名建構投資組合進行回測，可調整起始與結束日期、持有數量、再平衡週期、權重模式，以及手續費設定。執行後會將結果另存為 `backtest_<date>.json`。
+- `npm run backtest`：根據指定策略執行回測。`--strategy` 可選 `ma`、`top_n`、`threshold` 或 `rank`，其中 `ma` 需指定 `--stock`，`top_n` 需提供 `--n`，`threshold` 需提供 `--threshold`。`rank` 策略可調整起始與結束日期、持有數量、再平衡週期、權重模式，以及手續費設定。執行後會將結果另存為 `backtest_<date>.json`。
 
 ```bash
-npm run backtest -- --start 2018-01-01 --end 2020-12-31 \
+npm run backtest -- --strategy rank --start 2018-01-01 --end 2020-12-31 \
   --top 10 --rebalance 21 --mode equal --cost 0.001425 --fee 0.003 --slip 0.0015
 ```
 
