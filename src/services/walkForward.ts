@@ -2,6 +2,7 @@ import { RankRow } from './portfolioBuilder.js';
 import { backtest, PriceSeries, BacktestOptions } from './backtest.js';
 
 export interface WalkForwardOptions extends Omit<BacktestOptions, 'start'> {
+  start: string;
   windowYears: number;
   stepMonths: number;
 }
