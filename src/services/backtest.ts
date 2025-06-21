@@ -81,7 +81,7 @@ export function backtest(
         if (!port[s]) {
           const price = lastPrice[s];
           if (price != null) {
-            cash += model.sell(price) * qty;
+            cash += model.apply(price, 'sell') * qty;
             delete holdings[s];
           }
         }
@@ -94,12 +94,12 @@ export function backtest(
         const diff = target - cur;
         if (Math.abs(diff) < 1e-8) continue;
         if (diff > 0) {
-          const cost = model.buy(price) * diff;
+          const cost = model.apply(price, 'buy') * diff;
           cash -= cost;
           holdings[s] = cur + diff;
         } else {
           const qty = -diff;
-          cash += model.sell(price) * qty;
+          cash += model.apply(price, 'sell') * qty;
           holdings[s] = cur - qty;
         }
       }

@@ -64,9 +64,22 @@ describe('portfolioBuilder cap mode', () => {
 });
 
 describe('cost model', () => {
-  it('calculates buy and sell prices', () => {
+  it('calculates buy and sell prices via apply()', () => {
     const cm = new CostModel(0.001, 0.002, 0.001);
-    expect(cm.buy(100)).toBeCloseTo(100 * 1.001 * 1.001);
-    expect(cm.sell(100)).toBeCloseTo(100 * 0.999 * (1 - 0.001 - 0.002));
+    expect(cm.apply(100, 'buy')).toBeCloseTo(100 * 1.001 * 1.001);
+    expect(cm.apply(100, 'sell')).toBeCloseTo(100 * 0.999 * (1 - 0.001 - 0.002));
+  });
+
+  it('buy() and sell() delegate to apply()', () => {
+    const cm = new CostModel();
+    expect(cm.buy(50)).toBeCloseTo(cm.apply(50, 'buy'));
+    expect(cm.sell(50)).toBeCloseTo(cm.apply(50, 'sell'));
+  });
+
+  it('rate changes alter the output', () => {
+    const cm = new CostModel();
+    const baseBuy = cm.apply(100, 'buy');
+    cm.brokerage = 0.002;
+    expect(cm.apply(100, 'buy')).not.toBeCloseTo(baseBuy);
   });
 });

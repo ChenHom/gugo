@@ -9,11 +9,18 @@ export class CostModel {
     public slippage: number = DEFAULT_SLIPPAGE
   ) {}
 
+  apply(value: number, side: 'buy' | 'sell'): number {
+    if (side === 'buy') {
+      return value * (1 + this.slippage) * (1 + this.brokerage);
+    }
+    return value * (1 - this.slippage) * (1 - this.brokerage - this.tax);
+  }
+
   buy(price: number): number {
-    return price * (1 + this.slippage) * (1 + this.brokerage);
+    return this.apply(price, 'buy');
   }
 
   sell(price: number): number {
-    return price * (1 - this.slippage) * (1 - this.brokerage - this.tax);
+    return this.apply(price, 'sell');
   }
 }
