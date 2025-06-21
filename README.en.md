@@ -12,6 +12,7 @@ A comprehensive TypeScript tool that ranks Taiwan-listed equities by analyzing m
 - **CLI Interface**: Easy-to-use command-line tools
 - **Comprehensive Testing**: 90%+ test coverage with Vitest
 - **TypeScript**: Fully typed with strict type checking
+- **Risk Metrics**: Estimates a 95% confidence interval for max drawdown via 1000 bootstrap samples
 
 ## 🚀 Quick Start
 

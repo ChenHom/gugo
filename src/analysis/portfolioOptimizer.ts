@@ -13,7 +13,6 @@ export function meanVarianceOptimize(expected: number[], cov: number[][]): numbe
 }
 
 export function riskParity(cov: number[][]): number[] {
-  const n = cov.length;
   const vols = cov.map((row, i) => Math.sqrt(row[i]!));
   const invVol = vols.map(v => (v === 0 ? 0 : 1 / v));
   const sum = invVol.reduce((a, b) => a + b, 0);

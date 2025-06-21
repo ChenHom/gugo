@@ -33,9 +33,9 @@ export function walkForward(
   const results: WalkForwardResult[] = [];
   let winStart = opts.start;
   const winSizeMonths = opts.windowYears * 12;
-  while (true) {
+  const lastDate = dates[dates.length - 1]!;
+  while (addMonths(winStart, winSizeMonths) <= lastDate) {
     const winEnd = addMonths(winStart, winSizeMonths);
-    if (winEnd > dates[dates.length - 1]!) break;
     const res = backtest(
       ranks.filter(r => r.date >= winStart && r.date <= winEnd),
       Object.fromEntries(

@@ -10,3 +10,4 @@ export * from './services/scoringEngine.js';
 export * from './fetchers/valuationFetcher.js';
 export * from './fetchers/growthFetcher.js';
 export * from './models/LiquiditySizer.js';
+export * from './services/bootstrapPnL.js';
