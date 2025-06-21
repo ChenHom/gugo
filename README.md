@@ -71,7 +71,7 @@ npm install
 4. **初始化資料庫**：`npm run fetch-all`
 
 ## 🎮 使用指南
-更多 CLI 指令請參見 [docs/CLI_USAGE.md](docs/CLI_USAGE.md)
+更多 CLI 指令請參見 [docs/cli_usage.md](docs/cli_usage.md)
 
 
 

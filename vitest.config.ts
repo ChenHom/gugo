@@ -7,6 +7,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      include: [
+        'src/models/CostModel.ts',
+        'src/services/backtest.ts',
+        'src/services/portfolioBuilder.ts',
+        'src/services/walkForward.ts',
+      ],
       thresholds: {
         global: {
           branches: 90,
