@@ -19,7 +19,7 @@ async function main() {
       alias: 's',
       type: 'string',
       description: '股票代號（逗號分隔）',
-      default: DEFAULT_STOCK_CODES.join(',')
+      default: DEFAULT_STOCK_CODES.slice(0, 3).join(',')
     })
     .option('days', {
       alias: 'd',

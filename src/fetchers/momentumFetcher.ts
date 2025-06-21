@@ -15,6 +15,8 @@ export interface MomentumMetrics {
   boll_middle?: number;
   boll_lower?: number;
   price_change_1m?: number;
+  relative_strength_52w?: number;
+  ma20_above_ma60_days?: number;
 }
 
 /**
@@ -47,9 +49,9 @@ export class MomentumFetcher {
   private initializeDatabase(): void {
     const db = this.getDb();
 
-    // 創建技術指標表
+    // 創建動能指標表
     db.exec(`
-      CREATE TABLE IF NOT EXISTS technical_indicators (
+      CREATE TABLE IF NOT EXISTS momentum_metrics (
         stock_no TEXT NOT NULL,
         date DATE NOT NULL,
         ma_5 REAL,
@@ -60,6 +62,9 @@ export class MomentumFetcher {
         bb_upper REAL,
         bb_middle REAL,
         bb_lower REAL,
+        price_change_1m REAL,
+        relative_strength_52w REAL,
+        ma20_above_ma60_days INTEGER,
         PRIMARY KEY (stock_no, date)
       )
     `);
@@ -126,6 +131,8 @@ export class MomentumFetcher {
 
           // 計算一個月價格變化率
           const priceChange1M = this.calculatePriceChange(closePrices, 22); // 約22個交易日為一個月
+          const rs52w = this.calculatePriceChange(closePrices, 252);
+          const ma20AboveDays = this.countMA20AboveMA60Days(closePrices);
 
           const metrics: MomentumMetrics = {
             stock_id: stockId,
@@ -138,7 +145,9 @@ export class MomentumFetcher {
             ...(latestBBUpper !== undefined && { boll_upper: latestBBUpper }),
             ...(latestBBMiddle !== undefined && { boll_middle: latestBBMiddle }),
             ...(latestBBLower !== undefined && { boll_lower: latestBBLower }),
-            ...(priceChange1M !== undefined && { price_change_1m: priceChange1M })
+            ...(priceChange1M !== undefined && { price_change_1m: priceChange1M }),
+            ...(rs52w !== undefined && { relative_strength_52w: rs52w }),
+            ma20_above_ma60_days: ma20AboveDays
           };
 
           allMetrics.push(metrics);
@@ -231,6 +240,23 @@ export class MomentumFetcher {
   }
 
   /**
+   * 計算在指定價格序列中 MA20 高於 MA60 的天數
+   */
+  private countMA20AboveMA60Days(prices: number[]): number {
+    const ma20 = this.calculateSMA(prices, 20);
+    const ma60 = this.calculateSMA(prices, 60);
+    let count = 0;
+    for (let i = 0; i < prices.length; i++) {
+      const ma20Val = i >= 19 ? ma20[i - 19] : undefined;
+      const ma60Val = i >= 59 ? ma60[i - 59] : undefined;
+      if (ma20Val !== undefined && ma60Val !== undefined && ma20Val > ma60Val) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
    * 計算指數移動平均線 (EMA)
    */
   private calculateEMA(prices: number[], period: number): number[] {
@@ -302,9 +328,9 @@ export class MomentumFetcher {
 
     const db = this.getDb();
     const stmt = db.prepare(
-      `INSERT OR REPLACE INTO technical_indicators
-       (stock_no, date, ma_5, ma_20, ma_60, rsi, macd, bb_upper, bb_middle, bb_lower, price_change_1m)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR REPLACE INTO momentum_metrics
+       (stock_no, date, ma_5, ma_20, ma_60, rsi, macd, bb_upper, bb_middle, bb_lower, price_change_1m, relative_strength_52w, ma20_above_ma60_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     for (const item of data) {
@@ -320,7 +346,9 @@ export class MomentumFetcher {
           item.boll_upper || null,
           item.boll_middle || null,
           item.boll_lower || null,
-          item.price_change_1m || null
+          item.price_change_1m || null,
+          item.relative_strength_52w || null,
+          item.ma20_above_ma60_days ?? null
         );
       } catch (error) {
         console.error(`儲存動能指標資料失敗:`, error);
