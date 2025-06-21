@@ -80,10 +80,11 @@ npm run explain 2330
 npm run visualize -- --type distribution
 ```
 
-- `npm run backtest`：以每日排名建構投資組合進行回測，可調整起始日期、持有數量、再平衡週期與權重模式。
+- `npm run backtest`：以每日排名建構投資組合進行回測，可調整起始與結束日期、持有數量、再平衡週期、權重模式，以及手續費設定。執行後會將結果另存為 `backtest_<date>.json`。
 
 ```bash
-npm run backtest -- --start 2018-01-01 --top 10 --rebalance 21 --mode equal
+npm run backtest -- --start 2018-01-01 --end 2020-12-31 \
+  --top 10 --rebalance 21 --mode equal --cost 0.001425 --fee 0.003 --slip 0.0015
 ```
 
 - `npm run walk-forward`：執行滾動視窗的 Walk‑Forward 分析，除 backtest 參數外還可設定 `--window` (年) 與 `--step` (月)。

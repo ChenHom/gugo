@@ -29,16 +29,16 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
 
   const priceRows = query<any>('SELECT stock_no, date, close FROM price_daily ORDER BY date');
   const prices: Record<string, { date: string; close: number }[]> = {};
-  for (const row of priceRows) {
-    if (!prices[row.stock_no]) prices[row.stock_no] = [];
-    prices[row.stock_no].push({ date: row.date, close: row.close });
-  }
+    for (const row of priceRows) {
+      if (!prices[row.stock_no]) prices[row.stock_no] = [];
+      prices[row.stock_no]!.push({ date: row.date, close: row.close });
+    }
 
   const results = walkForward(ranks, prices, {
     start: argv.start,
     rebalance: argv.rebalance,
     top: argv.top,
-    mode: argv.mode,
+      mode: argv.mode as 'equal' | 'cap',
     windowYears: argv.window,
     stepMonths: argv.step,
     costModel: new CostModel(),

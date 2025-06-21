@@ -7,6 +7,7 @@ export type PriceSeries = Record<string, PriceBar[]>;
 
 export interface BacktestOptions extends PortfolioOptions {
   start: string;
+  end?: string;
   rebalance: number;
   costModel?: CostModel;
 }
@@ -23,7 +24,12 @@ function getPriceLookup(prices: PriceSeries): Record<string, Map<string, number>
   const lookup: Record<string, Map<string, number>> = {};
   for (const [s, series] of Object.entries(prices)) {
     const map = new Map<string, number>();
-    for (const p of series) map.set(p.date, p.close);
+    for (const p of series) {
+      if (!Number.isFinite(p.close) || p.close <= 0) {
+        throw new Error(`Invalid price for ${s} on ${p.date}`);
+      }
+      map.set(p.date, p.close);
+    }
     lookup[s] = map;
   }
   return lookup;
@@ -40,10 +46,19 @@ export function backtest(
   prices: PriceSeries,
   opts: BacktestOptions
 ): BacktestResult {
-  const weights = buildPortfolios(ranks, opts);
-  const dates = Array.from(
+  const weights = buildPortfolios(
+    ranks.filter(r => r.date >= opts.start && (!opts.end || r.date <= opts.end)),
+    opts
+  );
+  const allDates = Array.from(
     new Set(Object.values(prices).flatMap(p => p.map(r => r.date)))
-  ).filter(d => d >= opts.start).sort();
+  ).sort();
+  const dates = allDates.filter(
+    d => d >= opts.start && (!opts.end || d <= opts.end)
+  );
+  if (dates.length === 0) {
+    throw new Error('No price data in specified range');
+  }
 
   const priceLookup = getPriceLookup(prices);
   const holdings: Record<string, number> = {};

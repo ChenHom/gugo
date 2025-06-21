@@ -39,6 +39,16 @@ describe('backtest engine', () => {
     const res = backtest(r2, prices, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal', costModel: new CostModel(0,0,0) });
     expect(res.equity.length).toBe(2);
   });
+
+  it('respects end date', () => {
+    const res = backtest(ranks, prices, { start: '2020-01-01', end: '2020-01-01', rebalance: 1, top: 1, mode: 'equal', costModel: new CostModel(0,0,0) });
+    expect(res.dates.length).toBe(1);
+  });
+
+  it('throws on invalid price data', () => {
+    const bad = { A: [{ date: '2020-01-01', close: NaN }] } as any;
+    expect(() => backtest(ranks, bad, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal' })).toThrow();
+  });
 });
 
 describe('portfolioBuilder cap mode', () => {
