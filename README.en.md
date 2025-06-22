@@ -10,6 +10,7 @@ A comprehensive TypeScript tool that ranks Taiwan-listed equities by analyzing m
 - **Liquidity Sizing**: Caps each position at 10% of average daily volume
 - **Data Quality**: Built-in data cleaning and validation
 - **CLI Interface**: Easy-to-use command-line tools
+- **Parameter Optimization**: Batch backtesting across `top` and `rebalance` values with a CAGR/MDD heatmap
 - **Comprehensive Testing**: 90%+ test coverage with Vitest
 - **TypeScript**: Fully typed with strict type checking
 - **Risk Metrics**: Estimates a 95% confidence interval for max drawdown via 1000 bootstrap samples
