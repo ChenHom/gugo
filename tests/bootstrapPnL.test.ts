@@ -18,4 +18,8 @@ describe('bootstrapPnL', () => {
     expect(mdd).toBeGreaterThanOrEqual(ci95_low);
     expect(mdd).toBeLessThanOrEqual(ci95_high);
   });
+
+  it('throws on too short equity curve', () => {
+    expect(() => bootstrapPnL([1], 10)).toThrow();
+  });
 });

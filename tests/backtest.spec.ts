@@ -13,6 +13,24 @@ describe('portfolioBuilder', () => {
     expect(res['2020-01-01']!.A).toBeCloseTo(0.5);
     expect(res['2020-01-01']!.B).toBeCloseTo(0.5);
   });
+
+  it('selects exactly N holdings per date and sums to 1', () => {
+    const ranks: RankRow[] = [
+      { date: '2020-01-01', stock: 'A', score: 3 },
+      { date: '2020-01-01', stock: 'B', score: 2 },
+      { date: '2020-01-01', stock: 'C', score: 1 },
+      { date: '2020-01-02', stock: 'A', score: 3 },
+      { date: '2020-01-02', stock: 'B', score: 2 },
+      { date: '2020-01-02', stock: 'C', score: 1 },
+    ];
+    const res = buildPortfolios(ranks, { top: 2, mode: 'equal' });
+    for (const d of ['2020-01-01', '2020-01-02']) {
+      const w = res[d]!;
+      expect(Object.keys(w).length).toBe(2);
+      const sum = Object.values(w).reduce((a, b) => a + b, 0);
+      expect(sum).toBeCloseTo(1, 12);
+    }
+  });
 });
 
 describe('backtest engine', () => {
@@ -29,6 +47,24 @@ describe('backtest engine', () => {
   it('applies transaction costs', () => {
     const res = backtest(ranks, prices, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal' });
     expect(res.equity[res.equity.length - 1]).toBeLessThan(1);
+  });
+
+  it('matches single stock equity including transaction costs', () => {
+    const res = backtest(ranks, prices, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal' });
+    expect(res.equity.pop()!).toBeCloseTo(0.9970728625, 6);
+  });
+
+  it('removing a day never increases drawdown', () => {
+    const price2 = { A: [
+      { date: '2020-01-01', close: 1 },
+      { date: '2020-01-02', close: 1.2 },
+      { date: '2020-01-03', close: 0.8 },
+      { date: '2020-01-04', close: 1 },
+    ] };
+    const ranks2: RankRow[] = price2.A.map(p => ({ date: p.date, stock: 'A', score: 1 }));
+    const full = backtest(ranks2, price2, { start: '2020-01-01', rebalance: 1, top: 1, mode: 'equal', costModel: new CostModel(0,0,0) });
+    const removed = backtest(ranks2.slice(1), { A: price2.A.slice(1) }, { start: '2020-01-02', rebalance: 1, top: 1, mode: 'equal', costModel: new CostModel(0,0,0) });
+    expect(removed.mdd).toBeGreaterThanOrEqual(full.mdd);
   });
 
   it('sells on empty portfolio', () => {
