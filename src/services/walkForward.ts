@@ -3,6 +3,7 @@ import { backtest, PriceSeries, BacktestOptions } from './backtest.js';
 
 export interface WalkForwardOptions extends Omit<BacktestOptions, 'start'> {
   start: string;
+  end?: string;
   windowYears: number;
   stepMonths: number;
 }
@@ -33,7 +34,7 @@ export function walkForward(
   const results: WalkForwardResult[] = [];
   let winStart = opts.start;
   const winSizeMonths = opts.windowYears * 12;
-  const lastDate = dates[dates.length - 1]!;
+  const lastDate = opts.end ?? dates[dates.length - 1]!;
   while (addMonths(winStart, winSizeMonths) <= lastDate) {
     const winEnd = addMonths(winStart, winSizeMonths);
     const res = backtest(
