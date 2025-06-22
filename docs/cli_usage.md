@@ -105,6 +105,12 @@ npm run optimize -- --start 2018-01-01 --rebalance 21,42 --top 5,10 --out result
 npm run update -- --factors valuation,growth --force
 ```
 
+- `npm run bootstrap-pnl`：對權益曲線進行 1000 次 bootstrap，估算最大回撤的 95% 信賴區間。
+
+```bash
+npm run bootstrap-pnl
+```
+
 ## 測試與程式碼品質
 
 - `npm run test`：執行所有單元測試。
