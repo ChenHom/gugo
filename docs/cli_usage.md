@@ -88,10 +88,9 @@ npm run backtest -- --strategy rank --start 2018-01-01 --end 2020-12-31 \
   --top 10 --rebalance 21 --mode equal --cost 0.001425 --fee 0.003 --slip 0.0015
 ```
 
-- `npm run walk-forward`：執行滾動視窗的 Walk‑Forward 分析，除 backtest 參數外還可設定 `--window` (年) 與 `--step` (月)。
-
+- `npm run walk-forward`：執行滾動視窗的 Walk‑Forward 分析，可搭配 backtest 相同參數，另可設定 `--window` (年)、`--step` (月) 與 `--end`。
 ```bash
-npm run walk-forward -- --start 2018-01-01 --top 10 --rebalance 21 --window 3 --step 1
+npm run walk-forward -- --start 2018-01-01 --end 2020-12-31 --top 10 --rebalance 21 --window 3 --step 1
 ```
 
 - `npm run optimize`：批量測試不同的持股數 (`--top`) 與再平衡週期 (`--rebalance`)，並輸出 `optimize_<date>.png` 熱圖以及 CSV 結果。

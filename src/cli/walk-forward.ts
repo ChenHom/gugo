@@ -4,17 +4,21 @@ import yargs from 'yargs';
 import { query } from '../db.js';
 import { RankRow } from '../services/portfolioBuilder.js';
 import { walkForward } from '../services/walkForward.js';
-import { CostModel } from '../models/CostModel.js';
+import { CostModel, DEFAULT_BROKERAGE, DEFAULT_TAX, DEFAULT_SLIPPAGE } from '../models/CostModel.js';
 import fs from 'fs';
 
 export async function run(args: string[] = hideBin(process.argv)): Promise<void> {
   const argv = yargs(args)
     .option('start', { type: 'string', demandOption: true })
+    .option('end', { type: 'string' })
     .option('rebalance', { type: 'number', default: 21 })
     .option('top', { type: 'number', default: 10 })
     .option('mode', { choices: ['equal', 'cap'] as const, default: 'equal' })
     .option('window', { type: 'number', default: 3 })
     .option('step', { type: 'number', default: 1 })
+    .option('cost', { type: 'number', default: DEFAULT_BROKERAGE })
+    .option('fee', { type: 'number', default: DEFAULT_TAX })
+    .option('slip', { type: 'number', default: DEFAULT_SLIPPAGE })
     .option('out', { type: 'string', default: 'walkforward.csv' })
     .help()
     .parseSync();
@@ -36,17 +40,23 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
 
   const results = walkForward(ranks, prices, {
     start: argv.start,
+    end: argv.end,
     rebalance: argv.rebalance,
     top: argv.top,
-      mode: argv.mode as 'equal' | 'cap',
+    mode: argv.mode as 'equal' | 'cap',
     windowYears: argv.window,
     stepMonths: argv.step,
-    costModel: new CostModel(),
+    costModel: new CostModel(argv.cost, argv.fee, argv.slip),
   });
 
   const header = 'start,end,cagr,sharpe,mdd\n';
   const lines = results.map(r => `${r.start},${r.end},${r.cagr},${r.sharpe},${r.mdd}`).join('\n');
-  fs.writeFileSync(argv.out, header + lines);
+  const csv = header + lines + '\n';
+  fs.writeFileSync(argv.out, csv);
+  const rowCount = csv.trim().split('\n').length - 1;
+  if (rowCount !== results.length) {
+    throw new Error(`expected ${results.length} rows, got ${rowCount}`);
+  }
   console.log(`wrote ${results.length} windows to ${argv.out}`);
 }
 
