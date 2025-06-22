@@ -40,27 +40,32 @@ describe('CLI optimize command', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('generates png with expected size', async () => {
+  it('writes csv rows for all parameter pairs and outputs png', async () => {
     const { run } = await import('../src/cli/optimize.js');
     const date = new Date().toISOString().slice(0, 10);
+    const csv = path.join(tmpDir, `optimize_${date}.csv`);
     const png = path.join(tmpDir, `optimize_${date}.png`);
     const shim = path.join(tmpDir, 'python_user_visible');
     fs.writeFileSync(
       shim,
-      `#!/usr/bin/env node\nconst fs=require('fs');const m=process.argv.indexOf('-c');const s=process.argv[m+1];const p=s.match(/plt.savefig\\(r'(.*)'/)[1];fs.writeFileSync(p,Buffer.from('89504e470d0a1a0a0000000d4948445200000320000003200802000000','hex'));`
+      `#!/usr/bin/env node\nconst fs=require('fs');const path=require('path');const m=process.argv.indexOf('-c');const s=process.argv[m+1];const p=s.match(/plt.savefig\\(r'(.*)'/)[1];const out=path.join('${tmpDir.replace(/\\/g,'\\\\')}',path.basename(p));fs.writeFileSync(out,Buffer.from('89504e470d0a1a0a0000000d4948445200000320000003200802000000','hex'));`
     );
     fs.chmodSync(shim, 0o755);
     const oldPath = process.env.PATH;
     process.env.PATH = `${tmpDir}:${oldPath}`;
-    const outCsv = path.join(tmpDir, 'res.csv');
-    await run(['--start', '2021-01-01', '--rebalance', '1', '--top', '1', '--out', outCsv]);
+    const origWrite = fs.writeFileSync;
+    const writeSpy = vi
+      .spyOn(fs, 'writeFileSync')
+      .mockImplementation((file, data) => {
+        const p = path.join(tmpDir, path.basename(file as string));
+        origWrite(p, data as string | NodeJS.ArrayBufferView);
+      });
+    await run(['--start', '2021-01-01', '--tops', '1,2', '--rebalance', '1,2']);
+    writeSpy.mockRestore();
     process.env.PATH = oldPath;
 
     expect(fs.existsSync(png)).toBe(true);
-    const buf = fs.readFileSync(png);
-    const width = buf.readUInt32BE(16);
-    const height = buf.readUInt32BE(20);
-    expect(width).toBeGreaterThanOrEqual(800);
-    expect(height).toBeGreaterThanOrEqual(800);
+    const rows = fs.readFileSync(csv, 'utf8').trim().split('\n').length - 1;
+    expect(rows).toBe(4);
   });
 });
