@@ -89,6 +89,16 @@ npm install
    # FINMIND_TOKEN=your_token_here
    ```
 
+### 範例流程
+
+以下範例展示從抓取資料到排名與回測的基本操作：
+
+1. **抓取資料**：執行 `npm run fetch-all`（或分別執行 `npm run fetch-*`）以建立資料庫，終端會顯示各項資料的下載進度。
+
+2. **計算排名**：使用 `npm run rank` 產生股票排名表，依綜合分數由高到低輸出。
+
+3. **執行回測**：透過 `npm run backtest` 指定起始與結束日期進行歷史回測，完成後會輸出 CAGR、MDD 等統計並儲存 `backtest_<date>.json`。
+
 
 ## 🏗️ 專案架構
 

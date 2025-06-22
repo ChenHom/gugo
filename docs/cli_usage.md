@@ -111,6 +111,37 @@ npm run update -- --factors valuation,growth --force
 npm run bootstrap-pnl
 ```
 
+## 快速流程範例
+
+以下範例示範從抓取資料到排名與回測的基本流程：
+
+1. **抓取資料**：使用 `npm run fetch-all`（或個別 `fetch-*` 指令）初始化本地資料庫。
+
+   執行完畢後會在 `data/` 下生成 SQLite 檔案，並於終端顯示各 fetcher 的進度。
+
+   ```bash
+   npm run fetch-all
+   ```
+
+2. **計算排名**：執行 `npm run rank` 以輸出依綜合分數排序的股票列表。
+
+   此命令會在終端印出排行表，包含股票代號與分數。
+
+   ```bash
+   npm run rank -- --limit 20
+   ```
+
+3. **執行回測**：最後透過 `npm run backtest` 對排名策略進行歷史回測。
+
+   請指定起始與結束日期、持有數量和再平衡週期，結果將存為 `backtest_<date>.json`，並顯示 CAGR、MDD 等統計。
+
+   ```bash
+   npm run backtest -- --strategy rank --start 2018-01-01 --end 2020-12-31 \
+     --top 10 --rebalance 21
+   ```
+
+完成以上步驟即可獲得排名結果與回測報告，方便快速驗證策略成效。
+
 ## 測試與程式碼品質
 
 - `npm run test`：執行所有單元測試。
