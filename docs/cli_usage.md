@@ -94,6 +94,12 @@ npm run backtest -- --strategy rank --start 2018-01-01 --end 2020-12-31 \
 npm run walk-forward -- --start 2018-01-01 --top 10 --rebalance 21 --window 3 --step 1
 ```
 
+- `npm run optimize`：批量測試不同的持股數 (`--top`) 與再平衡週期 (`--rebalance`)，並輸出 `optimize_<date>.png` 熱圖以及 CSV 結果。
+
+```bash
+npm run optimize -- --start 2018-01-01 --rebalance 21,42 --top 5,10 --out result.csv
+```
+
 - `npm run update`：更新資料庫，可指定因子或股票，使用 `--force` 可忽略快取。
 
 ```bash

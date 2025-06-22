@@ -18,6 +18,7 @@
     "explain": "tsx src/cli/explain.ts",
     "visualize": "tsx src/cli/visualize.ts",
     "backtest": "tsx src/cli/backtest.ts",
+    "optimize": "tsx src/cli/optimize.ts",
     "update": "tsx src/cli/update.ts",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
