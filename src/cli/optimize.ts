@@ -13,10 +13,10 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
   const argv = yargs(args)
     .option('start', { type: 'string', demandOption: true })
     .option('end', { type: 'string' })
+    .option('grid', { type: 'boolean', default: true })
+    .option('tops', { type: 'string', default: '5,10,20' })
     .option('rebalance', { type: 'string', default: '21,42,63' })
-    .option('top', { type: 'string', default: '5,10,20' })
     .option('mode', { choices: ['equal', 'cap'] as const, default: 'equal' })
-    .option('out', { type: 'string', default: 'optimize.csv' })
     .help()
     .parseSync();
 
@@ -34,7 +34,7 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     prices[row.stock_no]!.push({ date: row.date, close: row.close });
   }
 
-  const topVals = argv.top.split(',').map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+  const topVals = argv.tops.split(',').map(v => parseInt(v, 10)).filter(n => !isNaN(n));
   const rebalanceVals = argv.rebalance.split(',').map(v => parseInt(v, 10)).filter(n => !isNaN(n));
   const results: { top: number; rebalance: number; cagr: number; mdd: number }[] = [];
   for (const t of topVals) {
@@ -51,13 +51,15 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
     }
   }
 
-  const outPath = path.resolve(argv.out);
-  const csv = 'top,rebalance,cagr,mdd\n' + results.map(r => `${r.top},${r.rebalance},${r.cagr},${r.mdd}`).join('\n');
+  const stamp = new Date().toISOString().slice(0, 10);
+  const outPath = path.resolve(`optimize_${stamp}.csv`);
+  const csv =
+    'top,rebalance,cagr,mdd\n' +
+    results.map(r => `${r.top},${r.rebalance},${r.cagr},${r.mdd}`).join('\n');
   fs.writeFileSync(outPath, csv);
-  console.log(`results written to ${outPath}`);
 
-  const imgFile = path.join(path.dirname(outPath), `optimize_${new Date().toISOString().slice(0, 10)}.png`);
-  const script = `import csv, matplotlib.pyplot as plt\nxs=[]\nys=[]\nwith open(r'${outPath.replace(/\\/g, "\\\\")}', 'r') as f:\n    r=csv.DictReader(f)\n    for row in r:\n        xs.append(float(row['mdd']))\n        ys.append(float(row['cagr']))\nplt.figure(figsize=(8,8))\nplt.hist2d(xs, ys, bins=30, cmap='viridis')\nplt.xlabel('MDD')\nplt.ylabel('CAGR')\nplt.title('CAGR vs MDD')\nplt.colorbar()\nplt.savefig(r'${imgFile.replace(/\\/g, "\\\\")}', dpi=100)\n`;
+  const imgFile = path.resolve(`optimize_${stamp}.png`);
+  const script = `import csv, matplotlib.pyplot as plt\nxs=[]\nys=[]\nwith open(r'${outPath.replace(/\\/g, "\\\\")}', 'r') as f:\n    r=csv.DictReader(f)\n    for row in r:\n        xs.append(float(row['mdd']))\n        ys.append(float(row['cagr']))\nplt.figure(figsize=(8,8))\nplt.hist2d(xs, ys, bins=30)\nplt.xlabel('MDD')\nplt.ylabel('CAGR')\nplt.savefig(r'${imgFile.replace(/\\/g, "\\\\")}', dpi=100)\n`;
   const py = spawnSync('python_user_visible', ['-u', '-c', script], { stdio: 'inherit' });
   if (py.error) console.error(py.error);
   else console.log(`heatmap saved to ${imgFile}`);
