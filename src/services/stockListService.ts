@@ -86,21 +86,29 @@ export class StockListService {
     try {
       console.log('📋 開始更新股票清單...');
 
-      // 從 TWSE 取得股票清單
-      const stockData = await this.fetchStockListFromTWSE();
+      // 從 TWSE 取得上市股票清單
+      const tseStockData = await this.fetchStockListFromTWSE();
 
-      if (stockData.length === 0) {
+      // 嘗試取得上櫃股票清單
+      const otcStockData = await this.fetchOTCStockList();
+
+      // 合併兩個清單
+      const allStockData = [...tseStockData, ...otcStockData];
+
+      if (allStockData.length === 0) {
         console.log('⚠️  未取得股票清單資料');
         return 0;
       }
 
       // 儲存到資料庫
-      const savedCount = await this.saveStockList(stockData);
+      const savedCount = await this.saveStockList(allStockData);
 
       // 更新 meta 資料
       await this.updateMeta('stock_list_last_updated', new Date().toISOString());
 
       console.log(`✅ 成功更新 ${savedCount} 支股票資料`);
+      console.log(`   上市股票：${tseStockData.length} 支`);
+      console.log(`   上櫃股票：${otcStockData.length} 支`);
       return savedCount;
 
     } catch (error) {
@@ -139,12 +147,12 @@ export class StockListService {
     }
 
     return rawData
-      .filter(item => item && item.Code && /^\d{4}$/.test(item.Code))
+      .filter(item => item && item['公司代號'] && /^\d{4}$/.test(item['公司代號']))
       .map(item => ({
-        stockNo: item.Code.trim(),
-        name: item.Name?.trim() || '',
-        industry: item.Industry?.trim(),
-        market: this.determineMarket(item.Market || item.Type),
+        stockNo: item['公司代號'].trim(),
+        name: item['公司名稱']?.trim() || item['公司簡稱']?.trim() || '',
+        industry: item['產業別']?.trim(),
+        market: '上市', // TWSE API 只回傳上市股票
       }))
       .filter(stock => stock.stockNo && stock.name);
   }
@@ -314,6 +322,25 @@ export class StockListService {
     if (this.db) {
       this.db.close();
       this.db = null;
+    }
+  }
+
+  /**
+   * 從 TPEx API 取得上櫃股票清單
+   */
+  private async fetchOTCStockList(): Promise<StockInfo[]> {
+    try {
+      // 目前 TPEx 沒有提供簡單的 API 端點來取得所有上櫃股票
+      // 作為替代方案，我們可以使用一些已知的上櫃股票代號
+      // 或者實作爬蟲來取得 TPEx 網站的資料
+
+      // 暫時回傳空陣列，待未來改進
+      console.log('⚠️  上櫃股票 API 尚未實作，僅取得上市股票');
+      return [];
+
+    } catch (error) {
+      console.error('從 TPEx 取得上櫃股票清單失敗:', error);
+      return [];
     }
   }
 }

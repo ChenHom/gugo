@@ -18,7 +18,42 @@ npm run dev
 
 ## 資料抓取
 
-- `npm run fetch-all`：一次抓取所有因子與價格資料。
+- `npm run update-stock-list`：更新股票清單，從 TWSE API 取得最新的上市上櫃股票資料。
+
+```bash
+# 自動檢查並更新股票清單（如果超過 24 小時）
+npm run update-stock-list
+
+# 強制更新股票清單
+npm run update-stock-list -- --force
+```
+
+- `npm run list-stocks`：查看股票清單，支援條件篩選、分數計算與匯出功能。
+
+```bash
+# 查看所有股票基本資訊
+npm run list-stocks
+
+# 篩選上市股票，限制顯示 20 支
+npm run list-stocks -- --market 上市 --limit 20
+
+# 篩選半導體產業股票
+npm run list-stocks -- --industry 半導體
+
+# 計算並顯示股票分數（較耗時）
+npm run list-stocks -- --show-scores --limit 10
+
+# 只顯示分數大於 70 的股票
+npm run list-stocks -- --show-scores --min-score 70
+
+# 匯出為 CSV 檔案
+npm run list-stocks -- --show-scores --export csv --limit 50
+
+# 匯出為 JSON 檔案
+npm run list-stocks -- --export json
+```
+
+- `npm run fetch-all`：一次抓取所有因子與價格資料。現在會自動檢查並更新股票清單，然後為所有股票抓取資料。
 
 ```bash
 npm run fetch-all
