@@ -59,7 +59,7 @@
 1. **克隆專案**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/ChenHom/gugo
 cd taiwan-stock-screener
 ```
 
