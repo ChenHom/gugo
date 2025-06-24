@@ -21,7 +21,7 @@ TotalScore = 40 % Valuation
 
 ````
 
-* Data fetched mainly from **TWSE OpenAPI** / FinMind / Goodinfo.
+* Data fetched mainly from **TWSE OpenAPI** / FinMind.
 * Stored in **SQLite (sql.js + WASM, file-backed)**.
 * Must expose CLI commands (`fetch-*`, `fetch-all`, `rank`, `explain`) and pass the acceptance tests (§8).
 

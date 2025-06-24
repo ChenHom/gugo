@@ -142,3 +142,7 @@ cache/
 
 # 環境變數檔案
 .env
+
+
+**/.DS_Store
+.DS_Store
