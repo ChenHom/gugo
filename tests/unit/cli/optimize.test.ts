@@ -34,14 +34,14 @@ describe('CLI optimize command', () => {
   });
 
   afterEach(async () => {
-    const { close } = await import('../src/db.js');
+    const { close } = await import('../../../src/db.js');
     close();
     if (fs.existsSync(dbFile)) fs.unlinkSync(dbFile);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
   it('writes csv rows for all parameter pairs and outputs png', async () => {
-    const { run } = await import('../src/cli/optimize.js');
+    const { run } = await import('../../../src/cli/optimize.js');
     const date = new Date().toISOString().slice(0, 10);
     const csv = path.join(tmpDir, `optimize_${date}.csv`);
     const png = path.join(tmpDir, `optimize_${date}.png`);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { meanVarianceOptimize, riskParity } from '../src/analysis/portfolioOptimizer.js';
+import { meanVarianceOptimize, riskParity } from '../../../src/analysis/portfolioOptimizer.js';
 
 describe('portfolio optimizer', () => {
   it('mean variance weights sum to 1', () => {

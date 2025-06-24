@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildPortfolios, RankRow } from '../src/services/portfolioBuilder.js';
-import { backtest } from '../src/services/backtest.js';
-import { CostModel } from '../src/models/CostModel.js';
+import { buildPortfolios, RankRow } from '../../../src/services/portfolioBuilder.js';
+import { backtest } from '../../../src/services/backtest.js';
+import { CostModel } from '../../../src/models/CostModel.js';
 
 describe('portfolioBuilder', () => {
   it('builds equal weights', () => {

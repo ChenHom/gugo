@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcInformationCoefficient, calcFactorDecay, calcFactorCorrelation } from '../src/analysis/factorAnalysis.js';
+import { calcInformationCoefficient, calcFactorDecay, calcFactorCorrelation } from '../../../src/analysis/factorAnalysis.js';
 
 describe('factor analysis', () => {
   it('calculates IC', () => {

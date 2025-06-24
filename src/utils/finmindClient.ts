@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { FINMIND_BASE_URL } from '../constants/index.js';
 import { defaultCache } from './simpleCache.js';
 
@@ -105,7 +104,7 @@ export class FinMindClient {
   private async makeRequest<T>(
     dataset: string,
     params: Record<string, string> = {},
-    useCache: boolean = true,
+    useCache: boolean = !process.env.CACHE_DISABLED && process.env.NODE_ENV !== 'test',
     cacheTtlMinutes: number = 30
   ): Promise<FinMindApiResponse<T>> {
     // 建立快取鍵值
@@ -115,12 +114,15 @@ export class FinMindClient {
     if (useCache) {
       const cachedData = await defaultCache.get<FinMindApiResponse<T>>(cacheKey);
       if (cachedData) {
-        console.log(`使用快取資料: ${dataset}`);
+        // 只在 debug 模式下顯示快取訊息
+        if (process.env.DEBUG) {
+          console.log(`使用快取資料: ${dataset}`);
+        }
         return cachedData;
       }
     }
 
-    const url = new URL('/data', this.baseUrl);
+    const url = new URL('data', this.baseUrl + '/');
 
     // 設定基本參數
     url.searchParams.set('dataset', dataset);
@@ -135,10 +137,28 @@ export class FinMindClient {
       url.searchParams.set(key, value);
     });
 
-    console.log(`請求 FinMind API: ${dataset} - ${url.toString()}`);
+    // 只在 debug 模式下顯示請求詳情
+    if (process.env.DEBUG) {
+      console.log(`請求 FinMind API: ${dataset} - ${url.toString()}`);
+    }
+
     const response = await fetch(url.toString());
 
     if (!response.ok) {
+      // 對於 404 Not Found，靜默處理，回傳空資料
+      if (response.status === 404) {
+        if (process.env.DEBUG) {
+          console.warn(`⚠️  FinMind API: ${dataset} - 該股票/日期無資料 (404 Not Found)`);
+        }
+        return {
+          status: 404,
+          msg: 'Not Found',
+          data: []
+        } as FinMindApiResponse<T>;
+      }
+
+      // 其他 HTTP 錯誤才顯示詳細信息並拋出
+      console.error(`❌ FinMind API 請求失敗: ${dataset} - ${response.status} ${response.statusText}`);
       throw new Error(`FinMind API request failed: ${response.status} ${response.statusText}`);
     }
 
@@ -174,11 +194,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無月營收資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch monthly revenue: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -203,11 +229,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無財務報表資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch financial statements: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -232,11 +264,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無三大法人買賣超資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch institutional investors data: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -261,11 +299,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無股價資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch stock price: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -290,11 +334,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無 PER/PBR 資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch PER/PBR data: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -319,11 +369,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無資產負債表資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch balance sheet: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -348,11 +404,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無現金流量表資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch cash flow: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -377,11 +439,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無股利政策資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch dividend data: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**
@@ -406,11 +474,17 @@ export class FinMindClient {
       params
     );
 
+    // 檢查 API 回應狀態，404 已在 makeRequest 中處理
+    if (response.status === 404) {
+      console.log(`⚠️  ${stockId} 該期間無市值資料`);
+      return [];
+    }
+
     if (response.status !== 200) {
       throw new Error(`Failed to fetch market value: ${response.msg}`);
     }
 
-    return response.data;
+    return response.data || [];
   }
 
   /**

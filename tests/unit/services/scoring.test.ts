@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { calcScore } from '../src/services/scoringEngine.js';
-import * as db from '../src/db.js';
+import { calcScore } from '../../../src/services/scoringEngine.js';
+import * as db from '../../../src/db.js';
 
 type QueryMock = ReturnType<typeof vi.fn>;
-vi.mock('../src/db.js', () => ({ query: vi.fn(), close: vi.fn() }));
+vi.mock('../../../src/db.js', () => ({ query: vi.fn(), close: vi.fn() }));
 
 const query = db.query as unknown as QueryMock;
 

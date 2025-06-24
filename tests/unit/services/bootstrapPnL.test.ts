@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { bootstrapPnL } from '../src/services/bootstrapPnL.js';
-import { maxDrawdown } from '../src/analysis/performanceReport.js';
+import { bootstrapPnL } from '../../../src/services/bootstrapPnL.js';
+import { maxDrawdown } from '../../../src/analysis/performanceReport.js';
 
 function seedRandom(seed: number): () => number {
   return () => {

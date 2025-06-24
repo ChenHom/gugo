@@ -84,13 +84,13 @@ describe('calcScore', () => {
 
   afterEach(async () => {
     // Close any open DB connection in the module and remove temp file
-    const { close } = await import('../src/db.js');
+    const { close } = await import('../../../src/db.js');
     close();
     if (fs.existsSync(dbFile)) fs.unlinkSync(dbFile);
   });
 
   it('calculates sub-scores and total correctly with default weights (zscore)', async () => {
-    const { calcScore } = await import('../src/services/scoringEngine.js');
+    const { calcScore } = await import('../../../src/services/scoringEngine.js');
     const a = await calcScore('A');
     const b = await calcScore('B');
     // Expected sub-scores for A: valuation≈53.33, others≈40; total≈45.33
@@ -118,7 +118,7 @@ describe('calcScore', () => {
     const db = new Database(dbFile);
     db.exec('DELETE FROM growth; DELETE FROM quality; DELETE FROM fundflow; DELETE FROM price_daily;');
     db.close();
-    const { calcScore } = await import('../src/services/scoringEngine.js');
+    const { calcScore } = await import('../../../src/services/scoringEngine.js');
     const c = await calcScore('A');
     // After deleting other tables, growth/quality/chips/momentum become missing
     expect(c.missing).toEqual(expect.arrayContaining([
@@ -127,7 +127,7 @@ describe('calcScore', () => {
   });
 
   it('applies custom weights correctly', async () => {
-    const { calcScore } = await import('../src/services/scoringEngine.js');
+    const { calcScore } = await import('../../../src/services/scoringEngine.js');
     // All weight on valuation only
     const opt = { weights: { valuation: 1, growth: 0, quality: 0, chips: 0, momentum: 0 } };
     const a = await calcScore('A', opt);
@@ -135,7 +135,7 @@ describe('calcScore', () => {
   });
 
   it('ensures each stock has data in all factor tables', async () => {
-    const { query, close } = await import('../src/db.js');
+    const { query, close } = await import('../../../src/db.js');
     const tables = ['valuation', 'growth', 'quality', 'fundflow', 'price_daily'];
     // Collect distinct stock lists per table
     const sets = tables.map(table => new Set(query(`SELECT DISTINCT stock_no FROM ${table}`)

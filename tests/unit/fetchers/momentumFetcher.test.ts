@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
-import { MomentumFetcher, MomentumMetrics } from '../src/fetchers/momentumFetcher.js';
+import { MomentumFetcher, MomentumMetrics } from '../../../src/fetchers/momentumFetcher.js';
 
 function tmpDbPath() {
   return path.join(os.tmpdir(), `momentum-test-${Date.now()}-${Math.random()}.db`);
@@ -34,9 +34,9 @@ describe('MomentumFetcher', () => {
     const fetcher = new MomentumFetcher(undefined, dbPath);
     fetcher.initialize();
     const metrics: MomentumMetrics[] = [
-      { stock_id: 'A', date: '2024-01-01', ma20_above_ma60_days: 1 },
-      { stock_id: 'B', date: '2024-01-01', ma20_above_ma60_days: 2 },
-      { stock_id: 'C', date: '2024-01-01', ma20_above_ma60_days: 3 }
+      { stock_no: 'A', date: '2024-01-01', ma20_above_ma60_days: 1 },
+      { stock_no: 'B', date: '2024-01-01', ma20_above_ma60_days: 2 },
+      { stock_no: 'C', date: '2024-01-01', ma20_above_ma60_days: 3 }
     ];
     (fetcher as any).saveMomentumData(metrics);
     const db = (fetcher as any).getDb();

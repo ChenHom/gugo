@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 
 export interface MomentumMetrics {
-  stock_id: string;
+  stock_no: string;
   date: string;
   rsi?: number;
   ma_5?: number;
@@ -135,7 +135,7 @@ export class MomentumFetcher {
           const ma20AboveDays = this.countMA20AboveMA60Days(closePrices);
 
           const metrics: MomentumMetrics = {
-            stock_id: stockId,
+            stock_no: stockId,
             date: latestDate,
             ...(latestRSI !== undefined && { rsi: latestRSI }),
             ...(latestMA5 !== undefined && { ma_5: latestMA5 }),
@@ -336,7 +336,7 @@ export class MomentumFetcher {
     for (const item of data) {
       try {
         stmt.run(
-          item.stock_id,
+          item.stock_no,
           item.date,
           item.ma_5 || null,
           item.ma_20 || null,

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { run } from '../src/cli/rank.js';
-import * as db from '../src/db.js';
-import * as se from '../src/services/scoringEngine.js';
+import { run } from '../../../src/cli/rank.js';
+import * as db from '../../../src/db.js';
+import * as se from '../../../src/services/scoringEngine.js';
 
-vi.mock('../src/db.js', () => ({ query: vi.fn() }));
-vi.mock('../src/services/scoringEngine.js', () => ({ calcScore: vi.fn() }));
+vi.mock('../../../src/db.js', () => ({ query: vi.fn() }));
+vi.mock('../../../src/services/scoringEngine.js', () => ({ calcScore: vi.fn() }));
 
 const query = db.query as unknown as ReturnType<typeof vi.fn>;
 const calcScore = se.calcScore as unknown as ReturnType<typeof vi.fn>;

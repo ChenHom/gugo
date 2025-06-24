@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { CacheManager } from '../src/utils/cacheManager.js';
+import { CacheManager } from '../../../src/utils/cacheManager.js';
 import { promises as fs } from 'fs';
 
 describe('CacheManager', () => {

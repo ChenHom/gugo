@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { walkForward } from '../src/services/walkForward.js';
-import { RankRow } from '../src/services/portfolioBuilder.js';
+import { walkForward } from '../../../src/services/walkForward.js';
+import { RankRow } from '../../../src/services/portfolioBuilder.js';
 
 const prices = {
   A: Array.from({ length: 365 * 4 }, (_, i) => ({

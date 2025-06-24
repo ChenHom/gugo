@@ -78,7 +78,7 @@ export class FundFlowFetcher {
       const institutionalData = await this.client.getInstitutionalInvestors(stockId, startDate, endDate);
 
       if (!institutionalData || institutionalData.length === 0) {
-        console.log(`⚠️  ${stockId} 無三大法人資料`);
+        console.log(`⚠️  ${stockId} 無三大法人資料 - 可能該股票尚未上市或該期間無資料`);
         return [];
       }
 
@@ -92,8 +92,22 @@ export class FundFlowFetcher {
       return flowMetrics;
 
     } catch (error) {
-      console.error(`❌ 抓取 ${stockId} 資金流向資料失敗:`, error);
-      throw error;
+      // 區分不同類型的錯誤給出友善提示
+      if (error instanceof Error) {
+        if (error.message.includes('404') || error.message.includes('Not Found')) {
+          console.warn(`⚠️  ${stockId} 該期間無三大法人資料 - API 回傳 404`);
+          return [];
+        } else if (error.message.includes('Failed to fetch')) {
+          console.error(`❌ ${stockId} 網路連線問題 - 請檢查網路或稍後重試`);
+        } else {
+          console.error(`❌ ${stockId} 三大法人資料處理失敗:`, error.message);
+        }
+      } else {
+        console.error(`❌ 抓取 ${stockId} 資金流向資料失敗:`, error);
+      }
+
+      // 不再拋出錯誤，而是回傳空陣列讓程式繼續執行
+      return [];
     }
   }
 

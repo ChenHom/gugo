@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adjustForAdtv, Holding } from '../src/models/LiquiditySizer.js';
+import { adjustForAdtv, Holding } from '../../../src/models/LiquiditySizer.js';
 
 describe('adjustForAdtv', () => {
   it('sets weight to zero when ADTV is below threshold', () => {

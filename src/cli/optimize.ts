@@ -39,14 +39,17 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
   const results: { top: number; rebalance: number; cagr: number; mdd: number }[] = [];
   for (const t of topVals) {
     for (const r of rebalanceVals) {
-      const res = backtest(ranks, prices, {
+      const options: any = {
         start: argv.start,
-        end: argv.end,
         rebalance: r,
         top: t,
         mode: argv.mode as 'equal' | 'cap',
         costModel: new CostModel(),
-      });
+      };
+      if (argv.end) {
+        options.end = argv.end;
+      }
+      const res = backtest(ranks, prices, options);
       results.push({ top: t, rebalance: r, cagr: res.cagr, mdd: res.mdd });
     }
   }

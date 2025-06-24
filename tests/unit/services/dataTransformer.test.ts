@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DataTransformer } from '../src/services/dataTransformer.js';
+import { DataTransformer } from '../../../src/services/dataTransformer.js';
 
 describe('DataTransformer', () => {
   describe('zScore', () => {

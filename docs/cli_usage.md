@@ -1,6 +1,6 @@
 # CLI 使用手冊
 
-本文件列出 `npm run` 指令的說明與範例。
+本文件列出 `npm run` 指令的說明與範例。完整的參數列表可透過 `npm run <command> -- --help` 查看。
 
 ## 建置與開發
 
@@ -30,26 +30,32 @@ npm run fetch-all
 npm run fetch-valuation -- --date 2024-01-05 --stocks 2330,2303
 ```
 
-- `npm run fetch-growth`：抓取營收與 EPS 成長資料，需要 FinMind Token。可透過 `--type` 指定 `revenue`、`eps` 或 `both`。
+- `npm run fetch-growth`：抓取營收與 EPS 成長資料，需要 FinMind Token。可透過 `--type` 指定 `revenue`、`eps` 或 `both`（預設）。支援 `--stocks` 指定股票代碼清單，`--no-cache` 停用快取。
 
 ```bash
-npm run fetch-growth -- --type revenue --stocks 2330
+# 抓取特定股票的營收資料
+npm run fetch-growth -- --type revenue --stocks 2330,2317
+
+# 抓取所有類型的成長資料（營收 + EPS）
+npm run fetch-growth -- --type both --stocks 2330
+
+# 不使用快取重新抓取
+npm run fetch-growth -- --no-cache --stocks 2330
 ```
 
 - `npm run fetch-quality`：抓取 ROE、毛利率等財務品質指標。
 
 ```bash
-npm run fetch-quality
+npm run fetch-quality -- --stock 2330
 ```
 
 - `npm run fetch-fund-flow`：抓取外資、投信買賣超等資金流資料。
 
 ```bash
-npm run fetch-fund-flow -- --stocks 2330 --start-date 2024-01-01
+npm run fetch-fund-flow -- --stocks 2330,2317 --start-date 2024-01-01
 ```
 
-
-- `npm run fetch-momentum`：抓取 RSI、移動平均等動能指標，預設會下載三檔範例股票。
+- `npm run fetch-momentum`：抓取 RSI、移動平均等動能指標，支援 `--stocks` 指定股票代碼清單，`--days` 指定計算天數。
 
 ```bash
 npm run fetch-momentum -- --stocks 2330,2317 --days 60
@@ -63,13 +69,31 @@ npm run fetch-price -- --stocks 2330 --days 30 --type price
 
 ## 分析與視覺化
 
-- `npm run rank`：計算股票綜合分數並依分數排序，可加入 `--limit`、`--minScore` 等參數。
+- `npm run rank`：計算股票綜合分數並依分數排序。支援多種評分方法與自訂權重。
+
+**主要參數：**
+- `--minScore`：最低分數門檻（預設：0）
+- `--limit`：顯示股票數量上限（預設：30）
+- `--weights`：自訂權重，格式為 `valuation,growth,quality,fundflow,momentum`
+- `--method`：評分方法，可選 `zscore`（預設）、`percentile`、`rolling`
+- `--window`：滾動視窗月數，用於 rolling 方法（預設：3）
+- `--offline`：離線模式，僅使用快取資料
 
 ```bash
+# 顯示前 10 名，最低分數 70
 npm run rank -- --limit 10 --minScore 70
+
+# 使用自訂權重（估值 50%，成長 30%，品質 20%）
+npm run rank -- --weights 50,30,20,0,0
+
+# 使用百分位數評分方法
+npm run rank -- --method percentile --limit 20
+
+# 離線模式排名
+npm run rank -- --offline --limit 15
 ```
 
-- `npm run explain`：顯示單一股票的詳細指標與評分。
+- `npm run explain`：顯示單一股票的詳細指標與評分分解。
 
 ```bash
 npm run explain 2330
@@ -81,22 +105,73 @@ npm run explain 2330
 npm run visualize -- --type distribution
 ```
 
-- `npm run backtest`：根據指定策略執行回測。`--strategy` 可選 `ma`、`top_n`、`threshold` 或 `rank`，其中 `ma` 需指定 `--stock`，`top_n` 需提供 `--n`，`threshold` 需提供 `--threshold`。`rank` 策略可調整起始與結束日期、持有數量、再平衡週期、權重模式，以及手續費設定。執行後會將結果另存為 `backtest_<date>.json`。
+- `npm run backtest`：根據指定策略執行回測。支援多種策略與詳細的成本設定。
+
+**策略選項：**
+- `ma`：移動平均策略（需指定 `--stock`）
+- `top_n`：前 N 名策略（需指定 `-n`）
+- `threshold`：門檻策略（需指定 `--threshold`）
+- `rank`：排名策略（預設，可調整各種參數）
+
+**主要參數：**
+- `--strategy`：策略類型（預設：ma）
+- `--start`：開始日期
+- `--end`：結束日期
+- `--top`：持有股票數量（預設：10）
+- `--rebalance`：再平衡週期（天數，預設：21）
+- `--mode`：權重模式，`equal`（等權重）或 `cap`（市值權重，預設：equal）
+- `--cost`：交易成本率（預設：0.001425）
+- `--fee`：手續費率（預設：0.003）
+- `--slip`：滑價率（預設：0.0015）
 
 ```bash
+# 基本排名策略回測
+npm run backtest -- --strategy rank --start 2018-01-01 --end 2020-12-31
+
+# 詳細參數設定
 npm run backtest -- --strategy rank --start 2018-01-01 --end 2020-12-31 \
   --top 10 --rebalance 21 --mode equal --cost 0.001425 --fee 0.003 --slip 0.0015
+
+# 門檻策略
+npm run backtest -- --strategy threshold --threshold 75 --start 2020-01-01
+
+# 前 N 名策略
+npm run backtest -- --strategy top_n -n 5 --start 2020-01-01
 ```
 
-- `npm run walk-forward`：執行滾動視窗的 Walk‑Forward 分析，可搭配 backtest 相同參數，另可設定 `--window` (年)、`--step` (月) 與 `--end`。
+- `npm run walk-forward`：執行滾動視窗的 Walk‑Forward 分析，用於驗證策略的時間穩定性。
+
+**主要參數：**
+- `--start`：分析開始日期
+- `--end`：分析結束日期
+- `--window`：訓練視窗長度（年數，預設：3）
+- `--step`：滾動步長（月數，預設：1）
+- 其他參數同 backtest 命令
+
 ```bash
-npm run walk-forward -- --start 2018-01-01 --end 2020-12-31 --top 10 --rebalance 21 --window 3 --step 1
+# 基本 Walk-Forward 分析
+npm run walk-forward -- --start 2018-01-01 --end 2020-12-31
+
+# 自訂視窗與步長
+npm run walk-forward -- --start 2018-01-01 --end 2020-12-31 \
+  --window 3 --step 1 --top 10 --rebalance 21
 ```
 
-- `npm run optimize`：批量測試不同的持股數 (`--top`) 與再平衡週期 (`--rebalance`)，並輸出 `optimize_<date>.png` 熱圖以及 CSV 結果。
+- `npm run optimize`：批量測試不同的持股數 (`--top`) 與再平衡週期 (`--rebalance`)，輸出最佳化結果。
+
+**主要參數：**
+- `--start`：回測開始日期
+- `--end`：回測結束日期
+- `--top`：測試的持股數量清單（逗號分隔）
+- `--rebalance`：測試的再平衡週期清單（逗號分隔）
+- `--out`：輸出檔案路徑（預設：optimize_日期.csv）
 
 ```bash
-npm run optimize -- --start 2018-01-01 --rebalance 21,42 --top 5,10 --out result.csv
+# 測試不同參數組合
+npm run optimize -- --start 2018-01-01 --rebalance 21,42 --top 5,10
+
+# 指定輸出檔案
+npm run optimize -- --start 2018-01-01 --rebalance 21,42 --top 5,10,15 --out result.csv
 ```
 
 - `npm run update`：更新資料庫，可指定因子或股票，使用 `--force` 可忽略快取。

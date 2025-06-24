@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ErrorHandler } from '../src/utils/errorHandler.js';
+import { ErrorHandler } from '../../../src/utils/errorHandler.js';
 
 // 攔截 console.error 以避免測試時顯示預期的錯誤訊息
 const originalConsoleError = console.error;

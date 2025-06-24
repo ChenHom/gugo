@@ -88,7 +88,7 @@ export class GrowthFetcher {
       const revenueData = await this.client.getMonthlyRevenue(stockId, startDate, endDate);
 
       if (!revenueData || revenueData.length === 0) {
-        console.log(`⚠️  ${stockId} 無營收資料`);
+        console.log(`⚠️  ${stockId} 無營收資料 - 可能該股票尚未上市或該期間無資料`);
         return [];
       }
 
@@ -102,8 +102,22 @@ export class GrowthFetcher {
       return growthMetrics;
 
     } catch (error) {
-      console.error(`❌ 抓取 ${stockId} 營收成長資料失敗:`, error);
-      throw error;
+      // 區分不同類型的錯誤給出友善提示
+      if (error instanceof Error) {
+        if (error.message.includes('404') || error.message.includes('Not Found')) {
+          console.warn(`⚠️  ${stockId} 該期間無營收資料 - API 回傳 404`);
+          return [];
+        } else if (error.message.includes('Failed to fetch')) {
+          console.error(`❌ ${stockId} 網路連線問題 - 請檢查網路或稍後重試`);
+        } else {
+          console.error(`❌ ${stockId} 營收資料處理失敗:`, error.message);
+        }
+      } else {
+        console.error(`❌ 抓取 ${stockId} 營收成長資料失敗:`, error);
+      }
+
+      // 不再拋出錯誤，而是回傳空陣列讓程式繼續執行
+      return [];
     }
   }
 
@@ -204,8 +218,34 @@ export class GrowthFetcher {
   /**
    * 向後相容的方法，供舊版 CLI 使用
    */
-  async fetchGrowthData(stockId: string, startDate: string, endDate: string): Promise<GrowthMetrics[]> {
-    return this.fetchRevenueGrowth(stockId, startDate, endDate);
+  async fetchGrowthData(stockId: string, startDate: string, endDate: string): Promise<GrowthMetrics[]>;
+  async fetchGrowthData(stockIds: string[]): Promise<GrowthMetrics[]>;
+  async fetchGrowthData(
+    stockIdOrIds: string | string[],
+    startDate?: string,
+    endDate?: string
+  ): Promise<GrowthMetrics[]> {
+    if (Array.isArray(stockIdOrIds)) {
+      // 處理數組輸入 - 用於測試和批次處理
+      const results: GrowthMetrics[] = [];
+      const defaultEndDate = new Date().toISOString().split('T')[0]!;
+      const defaultStartDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+
+      for (const stockId of stockIdOrIds) {
+        try {
+          const metrics = await this.fetchRevenueGrowth(stockId, defaultStartDate, defaultEndDate);
+          results.push(...metrics);
+          console.log(`✅ 成功抓取 ${stockId} 的成長資料，共 ${metrics.length} 筆`);
+        } catch (error) {
+          console.log(`⚠️  查無 ${stockId} 的成長性數據`);
+          console.error(`❌ 抓取 ${stockId} 失敗:`, error);
+        }
+      }
+      return results;
+    } else {
+      // 處理單一股票輸入
+      return this.fetchRevenueGrowth(stockIdOrIds, startDate!, endDate!);
+    }
   }
 
   /**
@@ -278,20 +318,82 @@ export class GrowthFetcher {
   /**
    * CLI 相容性方法 - 抓取 EPS 資料
    */
-  async fetchEpsData(_opts: {
+  async fetchEpsData(opts: {
     stockNos?: string[];
     useCache?: boolean;
   } = {}): Promise<{ success: boolean; data?: GrowthMetrics[]; error?: string }> {
     try {
-      // EPS 資料通常季報，這裡簡化處理
-      console.log('⚠️  EPS 成長資料需要整合財報 API，目前回傳空資料');
-      return { success: true, data: [] };
+      const stockNos = opts.stockNos || ['2330', '2317', '2454']; // 預設股票
+      const allEpsData: GrowthMetrics[] = [];
+
+      for (const stockNo of stockNos) {
+        try {
+          // 使用 FinMind API 獲取財務報表資料 (包含 EPS)
+          const startDate = new Date();
+          startDate.setFullYear(startDate.getFullYear() - 2); // 抓取最近 2 年的資料
+          const startDateStr = startDate.toISOString().split('T')[0] || '2022-01-01';
+
+          const financialData = await this.client.getFinancialStatements(
+            stockNo,
+            startDateStr,
+            undefined
+          );
+
+          // 從財務報表中提取 EPS 資料
+          const epsData = this.client.extractEpsFromFinancialStatements(financialData);
+
+          // 計算 EPS 季成長率
+          const epsMetrics = this.calculateEpsGrowthRates(stockNo, epsData);
+          allEpsData.push(...epsMetrics);
+
+          // 儲存到資料庫
+          await this.saveGrowthMetrics(epsMetrics);
+
+        } catch (error) {
+          console.warn(`⚠️  ${stockNo} EPS 資料獲取失敗:`, error instanceof Error ? error.message : String(error));
+        }
+      }
+
+      console.log(`✅ EPS 資料處理完成，共 ${allEpsData.length} 筆記錄`);
+      return { success: true, data: allEpsData };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error)
       };
     }
+  }
+
+  /**
+   * 計算 EPS 季成長率
+   */
+  private calculateEpsGrowthRates(
+    stockId: string,
+    epsData: Array<{ date: string; eps: number }>
+  ): GrowthMetrics[] {
+    if (epsData.length === 0) return [];
+
+    // 按日期排序
+    const sortedData = epsData.sort((a, b) => a.date.localeCompare(b.date));
+    const metrics: GrowthMetrics[] = [];
+
+    for (let i = 0; i < sortedData.length; i++) {
+      const current = sortedData[i];
+      if (!current) continue;
+
+      const quarterlyGrowth = i >= 4 && sortedData[i - 4] ?
+        ((current.eps - sortedData[i - 4]!.eps) / Math.abs(sortedData[i - 4]!.eps)) * 100 :
+        0;
+
+      metrics.push({
+        stock_id: stockId,
+        month: current.date.substring(0, 7), // YYYY-MM 格式
+        eps: current.eps,
+        eps_qoq: quarterlyGrowth
+      });
+    }
+
+    return metrics;
   }
 
   /**

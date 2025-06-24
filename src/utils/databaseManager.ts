@@ -54,11 +54,14 @@ export class DatabaseManager {
         // 檢查是否已執行過此 migration
         const executed = this.db.prepare('SELECT filename FROM migration_history WHERE filename = ?').get(file);
         if (executed) {
-          console.log(`⏭️  Migration ${file} already executed, skipping...`);
+          // 只在 debug 模式下顯示跳過訊息
+          if (process.env.DEBUG) {
+            console.log(`⏭️  Migration ${file} already executed, skipping...`);
+          }
           continue;
         }
 
-        console.log(`🚀 Executing migration: ${file}`);
+        console.log(`🚀 執行資料庫遷移: ${file}`);
         const filePath = path.join(migrationsDir, file);
         const sql = await fs.readFile(filePath, 'utf-8');
 
@@ -66,9 +69,9 @@ export class DatabaseManager {
           this.db.exec(sql);
           // 記錄成功執行的 migration
           this.db.prepare('INSERT INTO migration_history (filename) VALUES (?)').run(file);
-          console.log(`✅ Migration ${file} completed successfully`);
+          console.log(`✅ Migration ${file} 執行完成`);
         } catch (migrationError) {
-          console.error(`❌ Migration ${file} failed:`, migrationError);
+          console.error(`❌ Migration ${file} 執行失敗:`, migrationError);
           throw migrationError;
         }
       }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PriceFetcher } from '../src/fetchers/priceFetcher.js';
+import { PriceFetcher } from '../../../src/fetchers/priceFetcher.js';
 
 function calcEMA(values: number[], period: number): number[] {
   const k = 2 / (period + 1);

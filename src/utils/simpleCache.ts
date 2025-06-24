@@ -79,10 +79,22 @@ export class SimpleCache {
       await Promise.all(
         files
           .filter(file => file.endsWith('.json'))
-          .map(file => fs.unlink(path.join(this.cacheDir, file)))
+          .map(async file => {
+            try {
+              await fs.unlink(path.join(this.cacheDir, file));
+            } catch (error: any) {
+              // Ignore if file doesn't exist
+              if (error.code !== 'ENOENT') {
+                throw error;
+              }
+            }
+          })
       );
     } catch (error) {
-      console.warn('Failed to clear cache:', error);
+      // Only warn if it's not a directory not found error
+      if ((error as any).code !== 'ENOENT') {
+        console.warn('Failed to clear cache:', error);
+      }
     }
   }
 

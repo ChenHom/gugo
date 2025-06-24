@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { DataCleaner } from '../src/services/dataCleaner.js';
-import { ValuationData, GrowthData } from '../src/types/index.js';
+import { DataCleaner } from '../../../src/services/dataCleaner.js';
+import { ValuationData, GrowthData } from '../../../src/types/index.js';
 
 describe('DataCleaner', () => {
   describe('cleanValuationData', () => {

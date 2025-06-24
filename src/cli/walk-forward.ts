@@ -38,16 +38,20 @@ export async function run(args: string[] = hideBin(process.argv)): Promise<void>
       prices[row.stock_no]!.push({ date: row.date, close: row.close });
     }
 
-  const results = walkForward(ranks, prices, {
+  const options: any = {
     start: argv.start,
-    end: argv.end,
     rebalance: argv.rebalance,
     top: argv.top,
     mode: argv.mode as 'equal' | 'cap',
     windowYears: argv.window,
     stepMonths: argv.step,
     costModel: new CostModel(argv.cost, argv.fee, argv.slip),
-  });
+  };
+  if (argv.end) {
+    options.end = argv.end;
+  }
+
+  const results = walkForward(ranks, prices, options);
 
   const header = 'start,end,cagr,sharpe,mdd\n';
   const lines = results.map(r => `${r.start},${r.end},${r.cagr},${r.sharpe},${r.mdd}`).join('\n');
