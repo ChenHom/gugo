@@ -1,0 +1,20 @@
+{
+  "servers": {
+    "serena": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f", "~/code/ai/agent/serena/compose.yaml", // Serena 的 compose 檔放哪就改哪
+        "exec", "-T", "-i",
+        "serena",                                    // service name in docker-compose.yml
+        "serena-mcp-server",
+        "--context", "ide-assistant",
+        "--transport", "stdio",
+        "--project",
+        "/workspaces/project" // ← 完全用 VS Code 變數
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
