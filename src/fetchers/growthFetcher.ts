@@ -1,4 +1,5 @@
 import { FinMindClient, MonthlyRevenueData } from '../utils/finmindClient.js';
+import { TWSeApiClient } from '../utils/twseApiClient.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -17,14 +18,17 @@ export interface GrowthMetrics {
 /**
  * 成長指標資料擷取器
  * 負責抓取和處理營收成長、EPS 成長等指標
+ * 優先使用 TWSE OpenAPI，失敗時回退到 FinMind API
  */
 export class GrowthFetcher {
-  private client: FinMindClient;
+  private finmindClient: FinMindClient;
+  private twseClient: TWSeApiClient;
   private db: Database.Database | null = null;
   private dbPath: string;
 
   constructor(finmindToken?: string, dbPath: string = 'data/fundamentals.db') {
-    this.client = new FinMindClient(finmindToken);
+    this.finmindClient = new FinMindClient(finmindToken);
+    this.twseClient = new TWSeApiClient();
     this.dbPath = dbPath;
     this.getDb();
   }
@@ -75,6 +79,7 @@ export class GrowthFetcher {
 
   /**
    * 抓取月營收成長資料
+   * 優先使用 TWSE OpenAPI，失敗時回退到 FinMind API
    */
   async fetchRevenueGrowth(
     stockId: string,
@@ -83,9 +88,30 @@ export class GrowthFetcher {
   ): Promise<GrowthMetrics[]> {
     console.log(`📈 抓取營收成長資料: ${stockId} (${startDate} ~ ${endDate})`);
 
+    // 首先檢查資料庫中是否已有資料
+    const existingData = this.getGrowthMetrics(stockId, startDate, endDate);
+    if (existingData.length > 0) {
+      console.log(`🗄️ 資料庫中已有 ${existingData.length} 筆 ${stockId} 營收資料，直接使用`);
+      return existingData;
+    }
+
+    // 方法1: 嘗試使用 TWSE OpenAPI
     try {
-      // 抓取月營收資料
-      const revenueData = await this.client.getMonthlyRevenue(stockId, startDate, endDate);
+      console.log(`🇹🇼 優先嘗試 TWSE OpenAPI...`);
+      const twseData = await this.fetchRevenueFromTWSE(stockId, startDate, endDate);
+      if (twseData && twseData.length > 0) {
+        console.log(`✅ TWSE API 成功獲取 ${twseData.length} 期營收成長資料`);
+        await this.saveGrowthMetrics(twseData);
+        return twseData;
+      }
+    } catch (error) {
+      console.warn(`⚠️  TWSE API 失敗，回退到 FinMind:`, error instanceof Error ? error.message : error);
+    }
+
+    // 方法2: 回退到 FinMind API
+    try {
+      console.log(`🌐 使用 FinMind API 作為備用...`);
+      const revenueData = await this.finmindClient.getMonthlyRevenue(stockId, startDate, endDate);
 
       if (!revenueData || revenueData.length === 0) {
         console.log(`⚠️  ${stockId} 無營收資料 - 可能該股票尚未上市或該期間無資料`);
@@ -98,10 +124,17 @@ export class GrowthFetcher {
       // 儲存到資料庫
       await this.saveGrowthMetrics(growthMetrics);
 
-      console.log(`✅ 成功計算 ${growthMetrics.length} 期營收成長資料`);
+      console.log(`✅ FinMind API 成功計算 ${growthMetrics.length} 期營收成長資料`);
       return growthMetrics;
 
     } catch (error) {
+      // 檢查是否為付費方案限制
+      if (error instanceof Error && error.message.includes('402 Payment Required')) {
+        console.error(`❌ ${stockId}: FinMind API 需要付費方案，已達免費額度限制`);
+        console.log(`💡 建議: 申請 FinMind 付費方案或等待額度重置`);
+        return [];
+      }
+
       // 區分不同類型的錯誤給出友善提示
       if (error instanceof Error) {
         if (error.message.includes('404') || error.message.includes('Not Found')) {
@@ -119,6 +152,124 @@ export class GrowthFetcher {
       // 不再拋出錯誤，而是回傳空陣列讓程式繼續執行
       return [];
     }
+  }
+
+  /**
+   * 從 TWSE OpenAPI 抓取月營收資料
+   */
+  private async fetchRevenueFromTWSE(
+    stockId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<GrowthMetrics[]> {
+    const results: GrowthMetrics[] = [];
+
+    // 生成需要查詢的年月範圍
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const months: string[] = [];
+
+    for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+      const year = d.getFullYear().toString();
+      const month = (d.getMonth() + 1).toString();
+      months.push(`${year}-${month}`);
+    }
+
+    // 取得現在時間，用於計算月營收可用性
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    // 限制只查詢最近3年資料，避免無效請求
+    const threeYearsAgo = new Date();
+    threeYearsAgo.setFullYear(currentYear - 3);
+
+    // 先嘗試一次性查詢近期月營收 (可能適用於某些 API 版本)
+    try {
+      console.log(`🔍 嘗試一次性查詢 ${stockId} 的月營收資料...`);
+      // 使用當前月份前一個月份，因為本月可能尚未公布
+      let queryMonth = currentMonth - 1;
+      let queryYear = currentYear;
+      if (queryMonth <= 0) {
+        queryMonth = 12;
+        queryYear--;
+      }
+
+      const twseData = await this.twseClient.getMonthlyRevenue(
+        queryYear.toString(),
+        queryMonth.toString(),
+        stockId
+      );
+
+      if (twseData.length > 0) {
+        console.log(`✅ 成功取得 ${twseData.length} 筆月營收資料`);
+        const convertedData = this.twseClient.convertMonthlyRevenueData(twseData);
+        const growthMetrics = this.calculateGrowthRates(convertedData);
+
+        // 如果整批資料中有需要的日期範圍，進行篩選
+        const filteredMetrics = growthMetrics.filter(item => {
+          const itemDate = new Date(item.month);
+          return itemDate >= start && itemDate <= end;
+        });
+
+        if (filteredMetrics.length > 0) {
+          results.push(...filteredMetrics);
+          return results.sort((a, b) => a.month.localeCompare(b.month));
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ 整批查詢失敗，改為逐月查詢:`, error instanceof Error ? error.message : error);
+    }
+
+    // 如果整批查詢失敗，改為逐月查詢
+    console.log(`🔄 開始逐月查詢 ${stockId} 的月營收資料...`);
+    for (const yearMonth of months) {
+      try {
+        const [year, month] = yearMonth.split('-');
+
+        // 檢查是否為未來日期，跳過未來日期
+        const yearInt = parseInt(year);
+        const monthInt = parseInt(month);
+        if (yearInt > currentYear || (yearInt === currentYear && monthInt > currentMonth)) {
+          console.log(`⏭️ 跳過未來月份 ${yearMonth}`);
+          continue;
+        }
+
+        // 檢查是否為太久遠的日期
+        const monthDate = new Date(`${year}-${month}-01`);
+        if (monthDate < threeYearsAgo) {
+          console.log(`⏭️ 跳過過於久遠的月份 ${yearMonth}`);
+          continue;
+        }
+
+        console.log(`📅 查詢 ${stockId} ${yearMonth} 月營收`);
+        const twseData = await this.twseClient.getMonthlyRevenue(year, month, stockId);
+
+        // 篩選指定股票的資料
+        const stockData = twseData.filter(item => item.公司代號 === stockId);
+
+        if (stockData.length > 0) {
+          console.log(`✅ ${yearMonth} 找到 ${stockData.length} 筆 ${stockId} 月營收資料`);
+          const convertedData = this.twseClient.convertMonthlyRevenueData(stockData);
+          const growthMetrics = this.calculateGrowthRates(convertedData);
+          results.push(...growthMetrics);
+        } else {
+          console.log(`ℹ️ ${yearMonth} 無 ${stockId} 月營收資料`);
+        }
+      } catch (error) {
+        console.warn(`TWSE API 查詢 ${yearMonth} 失敗:`, error instanceof Error ? error.message : error);
+      }
+    }
+
+    // 如果成功獲取到部分資料，直接返回
+    if (results.length > 0) {
+      console.log(`✅ TWSE API 成功獲取 ${results.length} 筆 ${stockId} 月營收資料`);
+      return results.sort((a, b) => a.month.localeCompare(b.month));
+    }
+
+    // 如果沒有取得資料，拋出明確錯誤
+    console.warn(`⚠️ TWSE 未能取得 ${stockId} 從 ${startDate} 至 ${endDate} 的月營收資料`);
+    throw new Error(`TWSE API 未找到 ${stockId} 的月營收資料`);
   }
 
   /**
@@ -333,14 +484,14 @@ export class GrowthFetcher {
           startDate.setFullYear(startDate.getFullYear() - 2); // 抓取最近 2 年的資料
           const startDateStr = startDate.toISOString().split('T')[0] || '2022-01-01';
 
-          const financialData = await this.client.getFinancialStatements(
+          const financialData = await this.finmindClient.getFinancialStatements(
             stockNo,
             startDateStr,
             undefined
           );
 
           // 從財務報表中提取 EPS 資料
-          const epsData = this.client.extractEpsFromFinancialStatements(financialData);
+          const epsData = this.finmindClient.extractEpsFromFinancialStatements(financialData);
 
           // 計算 EPS 季成長率
           const epsMetrics = this.calculateEpsGrowthRates(stockNo, epsData);

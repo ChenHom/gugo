@@ -157,6 +157,16 @@ export class FinMindClient {
         } as FinMindApiResponse<T>;
       }
 
+      // 對於 402 Payment Required，提供清楚的付費提示
+      if (response.status === 402) {
+        console.error(`💰 FinMind API 需要付費方案: ${dataset}`);
+        console.log(`💡 提示:`);
+        console.log(`   - FinMind 免費版本已達額度限制`);
+        console.log(`   - 可考慮申請付費方案 https://finmind.github.io/`);
+        console.log(`   - 或等待明天額度重置後再試`);
+        throw new Error(`FinMind API request failed: 402 Payment Required`);
+      }
+
       // 其他 HTTP 錯誤才顯示詳細信息並拋出
       console.error(`❌ FinMind API 請求失敗: ${dataset} - ${response.status} ${response.statusText}`);
       throw new Error(`FinMind API request failed: ${response.status} ${response.statusText}`);

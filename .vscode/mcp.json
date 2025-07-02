@@ -1,18 +1,10 @@
 {
   "servers": {
     "serena": {
-      "type": "stdio",
-      "command": "docker",
+      "command": "uvx",
       "args": [
-        "exec", "-i",
-        "serena",
-        "serena-mcp-server",
-        "--context", "ide-assistant",
-        "--transport", "stdio",
-        "--project",
-        "/workspaces/projects/side-project/${workspaceFolderBasename}" // ← 完全用 VS Code 變數
+        "--from", "git+https://github.com/oraios/serena.git", "serena-mcp-server"
       ],
-      "cwd": "${workspaceFolder}"
     }
   }
 }

@@ -140,24 +140,14 @@ export async function calcScore(
 
 ---
 
-## 8  Acceptance Checklist
+## 8  Tests
 
-| ID   | Test                                          | Expected Result                                    |
-| ---- | --------------------------------------------- | -------------------------------------------------- |
-| T-01 | `npm run fetch-valuation`                     | ≥ 1800 rows in `valuation`                         |
-| T-02 | `npm run rank`                                | Markdown header + ≤ 30 rows, all `TotalScore ≥ 70` |
-| T-03 | `npm run explain 2330`                        | Shows 5 sub-scores summing to TotalScore           |
-| T-04 | `npm run rank --weights="40,20,20,10,10"`     | Uses new weights                                   |
-| T-05 | Disconnect network → `npm run rank --offline` | Works from cache                                   |
-| T-06 | `npm test`                                    | Green, coverage ≥ 90 %                             |
-| T-07 | GitHub Actions cron\@08:30                    | Completes < 20 min                                 |
-| T-08 | `time npm run fetch-all`                      | < 900 s on 1 vCPU                                  |
-| T-09 | Data integrity spot check                     | Sample matches manual calc                         |
-| T-10 | Schema migration                              | Auto-upgrade succeeds                              |
+[test organization](./test-organization.instructions.md)
 
 ---
 
-*End of Base Spec v0.3 — always include verbatim in future prompts.*
+## 9 功能實作報告
 
-```
+產生的報告應建立在 docs 資料夾並在檔名中包含日期。
+
 ```

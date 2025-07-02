@@ -21,16 +21,19 @@ export class ErrorHandler {
       stack: error.stack,
     };
 
-    const logFile = path.join(this.logDir, `error-${new Date().toISOString().split('T')[0]}.log`);
+    // Don't write to file during tests to avoid polluting logs with mock errors
+    if (process.env.NODE_ENV !== 'test') {
+      const logFile = path.join(this.logDir, `error-${new Date().toISOString().split('T')[0]}.log`);
 
-    try {
-      await fs.appendFile(logFile, JSON.stringify(logEntry) + '\n');
-    } catch (writeError) {
-      console.error('Failed to write error log:', writeError);
+      try {
+        await fs.appendFile(logFile, JSON.stringify(logEntry) + '\n');
+      } catch (writeError) {
+        console.error('Failed to write error log:', writeError);
+      }
     }
 
     // Also log to console in development
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
       console.error(`[${timestamp}] Error in ${context}:`, error);
     }
   }

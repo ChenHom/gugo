@@ -3,9 +3,11 @@
 import { PriceFetcher } from '../fetchers/priceFetcher.js';
 import { DatabaseManager } from '../utils/databaseManager.js';
 import { DEFAULT_STOCK_CODES } from '../constants/stocks.js';
+import { ErrorHandler } from '../utils/errorHandler.js';
+import { setupCliSignalHandler } from '../utils/signalHandler.js';
+import { processItems } from '../utils/batchProcessor.js';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { ErrorHandler } from '../utils/errorHandler.js';
 import ora from 'ora';
 
 interface Args {
@@ -20,7 +22,7 @@ async function main() {
       alias: 's',
       type: 'string',
       description: '股票代號（逗號分隔）',
-      default: DEFAULT_STOCK_CODES.join(',')
+      default: DEFAULT_STOCK_CODES.slice(0, 10).join(',')
     })
     .option('days', {
       alias: 'd',
@@ -39,6 +41,12 @@ async function main() {
     .argv as Args;
 
   const dbManager = new DatabaseManager();
+  const signalHandler = setupCliSignalHandler('fetch-price');
+
+  // 添加清理函數
+  signalHandler.addCleanupFunction(async () => {
+    await dbManager.close();
+  });
 
   try {
     await ErrorHandler.initialize();
@@ -47,47 +55,73 @@ async function main() {
     initSpinner.succeed('初始化完成');
 
     const stockIds = argv.stocks!.split(',').map(s => s.trim());
-    const startSpinner = ora(`開始抓取 ${stockIds.length} 支股票的${argv.type}資料...`).start();
-
     const fetcher = new PriceFetcher();
     await fetcher.initialize();
-    startSpinner.succeed('開始抓取');
 
     const endDate: string = new Date().toISOString().split('T')[0]!;
     const startDate: string = new Date(Date.now() - argv.days! * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
-    let priceCount = 0;
-    let valuationCount = 0;
+    // 使用批次處理來抓取價格資料
+    const results = await processItems(
+      stockIds,
+      async (stockId: string) => {
+        let priceData: any[] = [];
+        let valuationData: any[] = [];
 
-    for (const stockId of stockIds) {
-      try {
-        if (argv.type === 'price' || argv.type === 'both') {
-          const priceSpinner = ora(`抓取 ${stockId} 股價資料...`).start();
-          const priceData = await fetcher.fetchStockPrice(stockId, startDate, endDate);
-          priceCount += priceData.length;
-          priceSpinner.succeed(`${stockId} 股價資料: ${priceData.length} 筆`);
+        try {
+          if (argv.type === 'price' || argv.type === 'both') {
+            priceData = await fetcher.fetchStockPrice(stockId, startDate, endDate);
+          }
+
+          if (argv.type === 'valuation' || argv.type === 'both') {
+            valuationData = await fetcher.fetchValuation(stockId, startDate, endDate);
+          }
+
+          return {
+            stockId,
+            success: true,
+            priceData,
+            valuationData
+          };
+        } catch (error: any) {
+          // 針對 402 Payment Required 錯誤提供友善訊息
+          if (error.response?.status === 402) {
+            console.log(`⚠️  ${stockId}: FinMind API 需要付費方案，跳過此股票`);
+          }
+          throw error;
         }
-
-        if (argv.type === 'valuation' || argv.type === 'both') {
-          const valSpinner = ora(`抓取 ${stockId} 估值資料...`).start();
-          const valuationData = await fetcher.fetchValuation(stockId, startDate, endDate);
-          valuationCount += valuationData.length;
-          valSpinner.succeed(`${stockId} 估值資料: ${valuationData.length} 筆`);
-        }
-
-      } catch (error) {
-        ora().fail(`${stockId} 資料抓取失敗`);
-        await ErrorHandler.logError(error as Error, `fetch-price:${stockId}`);
-        console.error(`${stockId} 資料抓取失敗`);
+      },
+      {
+        batchSize: 5,
+        maxRetries: 2,
+        skipOnError: true,
+        retryDelay: 1000,
+        progressPrefix: `抓取${argv.type}資料`
       }
+    );
+
+    // 統計結果
+    const successCount = results.successful.length;
+    const failedCount = results.failed.length;
+
+    let totalPriceCount = 0;
+    let totalValuationCount = 0;
+
+    results.successful.forEach((result: any) => {
+      totalPriceCount += result.result.priceData?.length || 0;
+      totalValuationCount += result.result.valuationData?.length || 0;
+    });
+
+    console.log(`\n✅ 成功抓取 ${successCount} 支股票的資料`);
+    if (failedCount > 0) {
+      console.log(`⚠️  ${failedCount} 支股票抓取失敗`);
     }
 
-    console.log(`\n✅ 資料抓取完成:`);
     if (argv.type === 'price' || argv.type === 'both') {
-      console.log(`📈 股價資料: ${priceCount} 筆`);
+      console.log(`📈 股價資料: ${totalPriceCount} 筆`);
     }
     if (argv.type === 'valuation' || argv.type === 'both') {
-      console.log(`💰 估值資料: ${valuationCount} 筆`);
+      console.log(`💰 估值資料: ${totalValuationCount} 筆`);
     }
 
     fetcher.close();
