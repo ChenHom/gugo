@@ -29,13 +29,15 @@
     "test:finmind": "npm run build && node scripts/test-finmind.js",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fetch:mops": "tsx src/cli/fetch-mops-pdf.ts"
   },
   "dependencies": {
     "better-sqlite3": "^9.2.2",
     "node-fetch": "^3.3.2",
     "ora": "^8.2.0",
     "p-limit": "^4.0.0",
+    "puppeteer": "^24.11.2",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
