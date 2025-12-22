@@ -1,5 +1,6 @@
 // 常數定義
 export const API_BASE_URL = 'https://openapi.twse.com.tw';
+export const TPEX_BASE_URL = 'https://www.tpex.org.tw/openapi/v1';
 export const FINMIND_BASE_URL = 'https://api.finmindtrade.com/api/v4';
 
 export const API_ENDPOINTS = {
@@ -19,6 +20,10 @@ export const API_ENDPOINTS = {
   CASH_FLOW: 'FINMIND_CASH_FLOW', // FinMind TaiwanStockCashFlowsStatement
   DIVIDEND: 'FINMIND_DIVIDEND', // FinMind TaiwanStockDividend
   MARKET_VALUE: 'FINMIND_MARKET_VALUE', // FinMind TaiwanStockMarketValue
+} as const;
+
+export const TPEX_ENDPOINTS = {
+  COMPANY_INFO: '/tpex_mainboard_companys',
 } as const;
 
 export const TWSE_ENDPOINTS = {

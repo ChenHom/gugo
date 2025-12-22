@@ -209,9 +209,6 @@ export class TWSeApiClient {
       params.stockId = stockId;
     }
 
-    // 檢查參數是否符合要求
-    console.log(`🔍 TWSE 月營收 API 查詢參數: ${JSON.stringify(params)}`);
-
     try {
       const response = await this.makeRequest<TWSEMonthlyRevenueData>(
         '/v1/opendata/t187ap03_L',
@@ -497,7 +494,7 @@ export class TWSeApiClient {
     }
 
     try {
-      console.log(`🔍 TWSE 估值 API 查詢: ${stockId}, 參數: ${JSON.stringify(params)}`);
+      console.log(`🔍 TWSE 估值 API 查詢: ${stockId}`);
       const response = await this.makeRequest<TWSEValuationData>(
         '/v1/exchangeReport/BWIBBU_d',
         params

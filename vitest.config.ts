@@ -6,7 +6,7 @@ export default defineConfig({
     environment: 'node',
     env: {
       NODE_ENV: 'test',
-      FINMIND_TOKEN: '',
+      FINMIND_TOKEN: process.env.FINMIND_TOKEN || '',
       CACHE_DISABLED: 'true'
     },
     setupFiles: ['./tests/setup.ts'],

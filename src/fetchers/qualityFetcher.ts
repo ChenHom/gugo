@@ -88,14 +88,18 @@ export class QualityFetcher {
     endDate?: string
   ): Promise<QualityMetrics[]> {
     try {
-      console.log(`📊 抓取品質指標: ${stockId} (${startDate} ~ ${endDate || '今日'})`);
+      if (process.env.DEBUG) {
+        console.log(`📊 抓取品質指標: ${stockId} (${startDate} ~ ${endDate || '今日'})`);
+      }
 
       // 優先嘗試使用 TWSE API
       let financialData = [];
       let balanceSheetData = [];
 
       try {
-        console.log(`🇹🇼 嘗試從 TWSE 獲取 ${stockId} 財務資料...`);
+        if (process.env.DEBUG) {
+          console.log(`🇹🇼 嘗試從 TWSE 獲取 ${stockId} 財務資料...`);
+        }
         // 目前 TWSE API 不直接提供財務報表，所以我們可能需要額外的實作
         // 這裡可以添加將來 TWSE 財務資料的直接獲取方法
         // 先試試是否有這個方法的實作
@@ -118,9 +122,11 @@ export class QualityFetcher {
       // 如果 TWSE 沒有資料，回退到 FinMind
       if (financialData.length === 0) {
         try {
-          console.log(`🌐 從 FinMind 獲取 ${stockId} 財務報表...`);
+          if (process.env.DEBUG) {
+            console.log(`🌐 從 FinMind 獲取 ${stockId} 財務報表...`);
+          }
           financialData = await this.finmindClient.getFinancialStatements(stockId, startDate, endDate);
-          if (financialData.length > 0) {
+          if (process.env.DEBUG && financialData.length > 0) {
             console.log(`✅ 成功從 FinMind 獲取 ${financialData.length} 筆財務報表`);
           } else {
             console.warn(`⚠️ FinMind 未返回 ${stockId} 的財務報表資料`);
@@ -133,9 +139,11 @@ export class QualityFetcher {
 
       if (balanceSheetData.length === 0) {
         try {
-          console.log(`🌐 從 FinMind 獲取 ${stockId} 資產負債表...`);
+          if (process.env.DEBUG) {
+            console.log(`🌐 從 FinMind 獲取 ${stockId} 資產負債表...`);
+          }
           balanceSheetData = await this.finmindClient.getBalanceSheet(stockId, startDate, endDate);
-          if (balanceSheetData.length > 0) {
+          if (process.env.DEBUG && balanceSheetData.length > 0) {
             console.log(`✅ 成功從 FinMind 獲取 ${balanceSheetData.length} 筆資產負債表`);
           } else {
             console.warn(`⚠️ FinMind 未返回 ${stockId} 的資產負債表資料`);

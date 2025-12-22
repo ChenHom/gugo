@@ -22,11 +22,13 @@ export function restoreConsole() {
   console.warn = originalConsoleWarn;
 }
 
-// 簡化全域 fetch mock
-global.fetch = vi.fn(() =>
-  Promise.resolve({
-    ok: true,
-    status: 200,
-    json: () => Promise.resolve({ status: 200, msg: 'Success', data: [] }),
-  })
-) as any;
+// 簡化全域 fetch mock（若未提供 FINMIND_TOKEN，則 mock 回空資料；若有 token，保留真實 fetch）
+if (!process.env.FINMIND_TOKEN) {
+  global.fetch = vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ status: 200, msg: 'Success', data: [] }),
+    })
+  ) as any;
+}

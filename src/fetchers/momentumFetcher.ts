@@ -93,7 +93,9 @@ export class MomentumFetcher {
    */
   async fetchMomentumData(stockIds: string[], days: number = 60): Promise<MomentumMetrics[]> {
     try {
-      console.log(`開始抓取 ${stockIds.length} 支股票的動能資料...`);
+      if (process.env.DEBUG) {
+        console.log(`開始抓取 ${stockIds.length} 支股票的動能資料...`);
+      }
 
       const allMetrics: MomentumMetrics[] = [];
       const endDate: string = new Date().toISOString().split('T')[0]!;
@@ -110,38 +112,29 @@ export class MomentumFetcher {
 
       for (const stockId of stockIds) {
         try {
-          console.log(`處理股票 ${stockId}...`);
+          if (process.env.DEBUG) {
+            console.log(`處理股票 ${stockId}...`);
+          }
 
-          // 嘗試從 TWSE 獲取資料
+          // 直接使用 FinMind 獲取股價資料
           let priceData;
           try {
-            // 先嘗試使用 TWSE API（如果有實作的話）
-            console.log(`🇹🇼 嘗試從 TWSE 獲取 ${stockId} 股價資料...`);
-            priceData = await this.twseClient.getStockPrice(stockId, startDate, endDate);
-            if (priceData && priceData.length > 0) {
-              console.log(`✅ 成功從 TWSE 獲取 ${stockId} 股價資料: ${priceData.length} 筆`);
+            priceData = await this.finmindClient.getStockPrice(stockId, startDate, endDate!);
+            if (process.env.DEBUG && priceData && priceData.length > 0) {
+              console.log(`✅ 成功從 FinMind 獲取 ${stockId} 股價資料: ${priceData.length} 筆`);
             }
           } catch (error) {
-            console.log(`⚠️ TWSE 股價資料獲取失敗，回退到 FinMind: ${error instanceof Error ? error.message : error}`);
+            if (process.env.DEBUG) {
+              console.warn(`⚠️ FinMind 股價資料獲取失敗: ${error instanceof Error ? error.message : error}`);
+            }
             priceData = null;
           }
 
-          // 如果 TWSE 沒有資料，回退到 FinMind
+          // 如果無法獲取資料
           if (!priceData || priceData.length === 0) {
-            try {
-              console.log(`🌐 從 FinMind 獲取 ${stockId} 股價資料...`);
-              priceData = await this.finmindClient.getStockPrice(stockId, startDate, endDate!);
-              if (priceData && priceData.length > 0) {
-                console.log(`✅ 成功從 FinMind 獲取 ${stockId} 股價資料: ${priceData.length} 筆`);
-              }
-            } catch (error) {
-              console.warn(`⚠️ FinMind 股價資料獲取失敗: ${error instanceof Error ? error.message : error}`);
+            if (process.env.DEBUG) {
+              console.log(`⚠️ ${stockId} 無法獲取股價資料`);
             }
-          }
-
-          // 如果兩個來源都沒有資料
-          if (!priceData || priceData.length === 0) {
-            console.log(`⚠️ ${stockId} 無法從任何來源獲取股價資料`);
             continue;
           }
 
@@ -194,7 +187,10 @@ export class MomentumFetcher {
 
           // 更新 Map 中的資料
           metricsMap.set(stockId, metrics);
-          console.log(`✅ ${stockId} 動能指標計算完成: RSI=${latestRSI?.toFixed(2)}, MA20=${latestMA20?.toFixed(2)}, 月變化=${priceChange1M?.toFixed(2)}%`);
+          
+          if (process.env.DEBUG) {
+            console.log(`✅ ${stockId} 動能指標計算完成: RSI=${latestRSI?.toFixed(2)}, MA20=${latestMA20?.toFixed(2)}, 月變化=${priceChange1M?.toFixed(2)}%`);
+          }
 
         } catch (error) {
           console.error(`❌ ${stockId} 動能指標計算失敗:`, error);
@@ -210,7 +206,10 @@ export class MomentumFetcher {
         this.saveMomentumData(validMetrics);
       }
 
-      console.log(`✅ 成功處理 ${result.length} 支股票的動能指標資料`);
+      if (process.env.DEBUG) {
+        console.log(`✅ 成功處理 ${result.length} 支股票的動能指標資料`);
+      }
+      
       return result;
 
     } catch (error) {

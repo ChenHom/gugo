@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { ApiClient } from './apiClient.js';
 import { TWSE_ENDPOINTS } from '../constants/index.js';
+import { fetchFinMind } from '../adapters/finmind.js';
 
 export interface StockInfo {
   stockNo: string;
@@ -330,17 +331,43 @@ export class StockListService {
    */
   private async fetchOTCStockList(): Promise<StockInfo[]> {
     try {
-      // 目前 TPEx 沒有提供簡單的 API 端點來取得所有上櫃股票
-      // 作為替代方案，我們可以使用一些已知的上櫃股票代號
-      // 或者實作爬蟲來取得 TPEx 網站的資料
-
-      // 暫時回傳空陣列，待未來改進
-      console.log('⚠️  上櫃股票 API 尚未實作，僅取得上市股票');
-      return [];
+      // 使用 FinMind TaiwanStockInfo API 取得上櫃股票清單
+      const stockInfoData = await fetchFinMind('TaiwanStockInfo', {}, false);
+      
+      return this.parseOTCStockData(stockInfoData);
 
     } catch (error) {
-      console.error('從 TPEx 取得上櫃股票清單失敗:', error);
+      console.error('從 FinMind 取得上櫃股票清單失敗:', error);
+      // 如果 API 失敗，回傳空陣列，保持現有資料
       return [];
     }
+  }
+
+  /**
+   * 解析 FinMind TaiwanStockInfo 回傳的上櫃股票資料
+   */
+  private parseOTCStockData(rawData: any[]): StockInfo[] {
+    if (!Array.isArray(rawData)) {
+      return [];
+    }
+
+    return rawData
+      .filter(item => {
+        // 只取上櫃股票 (tpex)
+        const market = item.type;
+        return market === 'tpex';
+      })
+      .filter(item => {
+        // 過濾出有效的股票代號（4 位數字）
+        const stockNo = item.stock_id;
+        return stockNo && /^\d{4}$/.test(String(stockNo));
+      })
+      .map(item => ({
+        stockNo: String(item.stock_id).trim(),
+        name: (item.stock_name || '').trim(),
+        industry: (item.industry_category || '').trim(),
+        market: '上櫃',
+      }))
+      .filter(stock => stock.stockNo && stock.name);
   }
 }

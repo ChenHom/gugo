@@ -69,14 +69,16 @@ export class FundFlowFetcher {
 
   /**
    * 抓取三大法人資金流向資料
-   * 優先使用 TWSE OpenAPI，失敗時回退到 FinMind API
+   * 使用 FinMind API（TWSE OpenAPI 目前不提供此資料）
    */
   async fetchInstitutionalFlow(
     stockId: string,
     startDate: string,
     endDate: string | undefined
   ): Promise<FundFlowMetrics[]> {
-    console.log(`💰 抓取資金流向資料: ${stockId} (${startDate} ~ ${endDate})`);
+    if (process.env.DEBUG) {
+      console.log(`💰 抓取資金流向資料: ${stockId} (${startDate} ~ ${endDate || '今日'})`);
+    }
 
     // 檢查是否在測試環境
     if (process.env.NODE_ENV === 'test') {
@@ -111,26 +113,14 @@ export class FundFlowFetcher {
       return result;
     }
 
-    // 方法1: 嘗試使用 TWSE OpenAPI
+    // 使用 FinMind API 抓取三大法人資料
     try {
-      console.log(`🇹🇼 優先嘗試 TWSE OpenAPI...`);
-      const twseData = await this.fetchFromTWSE(stockId, startDate, endDate);
-      if (twseData.length > 0) {
-        console.log(`✅ TWSE API 成功獲取 ${twseData.length} 筆資金流向資料`);
-        await this.saveFundFlowMetrics(twseData);
-        return twseData;
-      }
-    } catch (error) {
-      console.warn(`⚠️  TWSE API 失敗，回退到 FinMind:`, error instanceof Error ? error.message : error);
-    }
-
-    // 方法2: 回退到 FinMind API
-    try {
-      console.log(`🌐 使用 FinMind API 作為備用...`);
       const institutionalData = await this.finmindClient.getInstitutionalInvestors(stockId, startDate, endDate);
 
       if (!institutionalData || institutionalData.length === 0) {
-        console.log(`⚠️  ${stockId} 無三大法人資料 - 可能該股票尚未上市或該期間無資料`);
+        if (process.env.DEBUG) {
+          console.log(`⚠️  ${stockId} 無三大法人資料 - 可能該股票尚未上市或該期間無資料`);
+        }
         return [];
       }
 
@@ -140,7 +130,9 @@ export class FundFlowFetcher {
       // 儲存到資料庫
       await this.saveFundFlowMetrics(flowMetrics);
 
-      console.log(`✅ FinMind API 成功處理 ${flowMetrics.length} 筆資金流向資料`);
+      if (process.env.DEBUG) {
+        console.log(`✅ 成功處理 ${flowMetrics.length} 筆資金流向資料`);
+      }
       return flowMetrics;
 
     } catch (error) {

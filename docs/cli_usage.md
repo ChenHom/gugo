@@ -55,8 +55,33 @@ npm run list-stocks -- --export json
 
 - `npm run fetch-all`：一次抓取所有因子與價格資料。現在會自動檢查並更新股票清單，然後為所有股票抓取資料。
 
+支援參數：
+- `--market` (或 `-m`)：指定市場類型
+  - `tse`：僅抓取上市股票
+  - `otc`：僅抓取上櫃股票
+  - `emerging`：僅抓取興櫃股票
+  - `all`：抓取所有股票（預設值）
+- `--stocks` (或 `-s`)：指定特定股票代碼，以逗號分隔
+- `--exclude` (或 `-e`)：排除特定股票代碼，以逗號分隔
+
 ```bash
+# 抓取所有股票資料
 npm run fetch-all
+
+# 只抓取上市股票
+npm run fetch-all -- --market tse
+
+# 只抓取上櫃股票
+npm run fetch-all -- --market otc
+
+# 只抓取指定股票
+npm run fetch-all -- --stocks 2330,2317,5274
+
+# 抓取上市股票但排除台積電
+npm run fetch-all -- --market tse --exclude 2330
+
+# 抓取多支指定股票（上市 + 上櫃）
+npm run fetch-all -- --stocks 2330,2317,5274,6488
 ```
 
 - `npm run fetch-valuation`：抓取本益比、股價淨值比等估值資料，可使用 `--date`、`--stocks` 等參數。

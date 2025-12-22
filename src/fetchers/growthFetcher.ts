@@ -86,18 +86,24 @@ export class GrowthFetcher {
     startDate: string,
     endDate: string
   ): Promise<GrowthMetrics[]> {
-    console.log(`📈 抓取營收成長資料: ${stockId} (${startDate} ~ ${endDate})`);
+    if (process.env.DEBUG) {
+      console.log(`📈 抓取營收成長資料: ${stockId} (${startDate} ~ ${endDate})`);
+    }
 
     // 首先檢查資料庫中是否已有資料
     const existingData = this.getGrowthMetrics(stockId, startDate, endDate);
     if (existingData.length > 0) {
-      console.log(`🗄️ 資料庫中已有 ${existingData.length} 筆 ${stockId} 營收資料，直接使用`);
+      if (process.env.DEBUG) {
+        console.log(`🗄️ 資料庫中已有 ${existingData.length} 筆 ${stockId} 營收資料，直接使用`);
+      }
       return existingData;
     }
 
     // 方法1: 嘗試使用 TWSE OpenAPI
     try {
-      console.log(`🇹🇼 優先嘗試 TWSE OpenAPI...`);
+      if (process.env.DEBUG) {
+        console.log(`🇹🇼 優先嘗試 TWSE OpenAPI...`);
+      }
       const twseData = await this.fetchRevenueFromTWSE(stockId, startDate, endDate);
       if (twseData && twseData.length > 0) {
         console.log(`✅ TWSE API 成功獲取 ${twseData.length} 期營收成長資料`);
@@ -111,7 +117,14 @@ export class GrowthFetcher {
     // 方法2: 回退到 FinMind API
     try {
       console.log(`🌐 使用 FinMind API 作為備用...`);
-      const revenueData = await this.finmindClient.getMonthlyRevenue(stockId, startDate, endDate);
+      // 為了計算 YoY，向前擴展查詢範圍一整年，以取得去年同期資料
+      const finmindStartDate = (() => {
+        const d = new Date(startDate);
+        d.setFullYear(d.getFullYear() - 1);
+        return d.toISOString().split('T')[0];
+      })();
+
+      const revenueData = await this.finmindClient.getMonthlyRevenue(stockId, finmindStartDate, endDate);
 
       if (!revenueData || revenueData.length === 0) {
         console.log(`⚠️  ${stockId} 無營收資料 - 可能該股票尚未上市或該期間無資料`);
@@ -121,11 +134,19 @@ export class GrowthFetcher {
       // 計算成長率
       const growthMetrics = this.calculateGrowthRates(revenueData);
 
-      // 儲存到資料庫
-      await this.saveGrowthMetrics(growthMetrics);
+      // 篩選回傳時間區間 (只保留原始 startDate ~ endDate 範圍)
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const filteredMetrics = growthMetrics.filter(item => {
+        const itemDate = new Date(item.month);
+        return itemDate >= start && itemDate <= end;
+      });
 
-      console.log(`✅ FinMind API 成功計算 ${growthMetrics.length} 期營收成長資料`);
-      return growthMetrics;
+      // 儲存到資料庫
+      await this.saveGrowthMetrics(filteredMetrics);
+
+      console.log(`✅ FinMind API 成功計算 ${filteredMetrics.length} 期營收成長資料`);
+      return filteredMetrics;
 
     } catch (error) {
       // 檢查是否為付費方案限制

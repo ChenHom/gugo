@@ -9,8 +9,16 @@ import { ErrorHandler } from '../utils/errorHandler.js';
 import { setupCliSignalHandler } from '../utils/signalHandler.js';
 import { processStocks, BatchProcessor } from '../utils/batchProcessor.js';
 import ora from 'ora';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
-export async function run(): Promise<void> {
+interface FetchAllOptions {
+  market?: string;
+  stocks?: string;
+  exclude?: string;
+}
+
+export async function run(options: FetchAllOptions = {}): Promise<void> {
   // 設置信號處理
   const signalHandler = setupCliSignalHandler('抓取所有資料');
 
@@ -43,8 +51,40 @@ export async function run(): Promise<void> {
   }
 
   // 取得所有股票代碼
-  const allStocks = stockListService.getAllStocks();
-  const stockCodes = allStocks.map(stock => stock.stockNo);
+  let allStocks = stockListService.getAllStocks();
+  
+  // 根據 market 參數篩選
+  if (options.market && options.market !== 'all') {
+    const marketMap: Record<string, string> = {
+      'tse': '上市',
+      'otc': '上櫃',
+      'emerging': '興櫃'
+    };
+    const targetMarket = marketMap[options.market.toLowerCase()];
+    if (targetMarket) {
+      allStocks = allStocks.filter(stock => stock.market === targetMarket);
+      console.log(`📌 篩選市場：${targetMarket}`);
+    } else {
+      console.log(`⚠️  未知的市場類型：${options.market}，將抓取所有股票`);
+    }
+  }
+  
+  let stockCodes: string[];
+  
+  // 如果指定了特定股票代碼
+  if (options.stocks) {
+    stockCodes = options.stocks.split(',').map(s => s.trim());
+    console.log(`📌 指定股票：${stockCodes.join(', ')}`);
+  } else {
+    stockCodes = allStocks.map(stock => stock.stockNo);
+  }
+  
+  // 排除特定股票
+  if (options.exclude) {
+    const excludeList = options.exclude.split(',').map(s => s.trim());
+    stockCodes = stockCodes.filter(code => !excludeList.includes(code));
+    console.log(`📌 排除股票：${excludeList.join(', ')}`);
+  }
 
   console.log(`📊 將抓取 ${stockCodes.length} 支股票的資料`);
 
@@ -167,5 +207,35 @@ export async function run(): Promise<void> {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  run();
+  const argv = await yargs(hideBin(process.argv))
+    .option('market', {
+      alias: 'm',
+      type: 'string',
+      description: '市場類型：tse(上市) | otc(上櫃) | emerging(興櫃) | all(全部)',
+      default: 'all',
+      choices: ['tse', 'otc', 'emerging', 'all']
+    })
+    .option('stocks', {
+      alias: 's',
+      type: 'string',
+      description: '指定股票代碼，以逗號分隔（例：2330,2317）'
+    })
+    .option('exclude', {
+      alias: 'e',
+      type: 'string',
+      description: '排除特定股票代碼，以逗號分隔'
+    })
+    .example('$0', '抓取所有股票資料')
+    .example('$0 --market tse', '只抓取上市股票')
+    .example('$0 --market otc', '只抓取上櫃股票')
+    .example('$0 --stocks 2330,2317', '只抓取指定股票')
+    .example('$0 --market tse --exclude 2330', '抓取上市股票但排除台積電')
+    .help()
+    .argv;
+
+  await run({
+    market: argv.market,
+    stocks: argv.stocks,
+    exclude: argv.exclude
+  });
 }
