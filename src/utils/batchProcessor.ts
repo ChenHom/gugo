@@ -22,9 +22,9 @@ export interface BatchOptions<T> {
   /** 進度訊息前綴 */
   progressPrefix?: string;
   /** 錯誤回調函數 */
-  onError?: (item: T, error: Error, retryCount: number) => void;
+  onError?: (item: T, error: Error, retryCount: number) => void | Promise<void>;
   /** 成功回調函數 */
-  onSuccess?: (item: T, result: any) => void;
+  onSuccess?: (item: T, result: any) => void | Promise<void>;
 }
 
 export interface BatchResult<T, R> {
@@ -87,8 +87,14 @@ export class BatchProcessor<T, R = any> {
     // 分批處理
     const batches = this.createBatches(items);
     let processedCount = 0;
+    let quotaExceeded = false;
 
     for (const batch of batches) {
+      if (quotaExceeded) {
+        // 如果配額已用盡，跳過剩餘項目
+        break;
+      }
+
       // 控制並行數量
       const promises = batch.map(item =>
         this.processItemWithRetry(item, processor, itemDescription)
@@ -110,16 +116,38 @@ export class BatchProcessor<T, R = any> {
 
           if (success && itemResult !== undefined) {
             result.successful.push({ item, result: itemResult });
-            this.options.onSuccess(item, itemResult);
+            try {
+              await this.options.onSuccess(item, itemResult);
+            } catch (callbackError) {
+              // onSuccess 回調錯誤不影響主流程
+            }
           } else if (error) {
             result.failed.push({ item, error, retryCount });
-            this.options.onError(item, error, retryCount);
+            try {
+              await this.options.onError(item, error, retryCount);
+              
+              // 檢查是否為配額錯誤
+              if (error.message === 'QUOTA_EXCEEDED') {
+                quotaExceeded = true;
+                break; // 跳出當前批次
+              }
+            } catch (callbackError) {
+              // 如果 onError 拋出 QUOTA_EXCEEDED，也要停止
+              if ((callbackError as Error).message === 'QUOTA_EXCEEDED') {
+                quotaExceeded = true;
+                break;
+              }
+            }
           }
         } else {
           // Promise 被拒絕
           const error = batchResult.reason as Error;
           result.failed.push({ item, error, retryCount: 0 });
-          this.options.onError(item, error, 0);
+          try {
+            await this.options.onError(item, error, 0);
+          } catch (callbackError) {
+            // onError 回調錯誤不影響主流程
+          }
         }
 
         // 更新進度
@@ -137,7 +165,9 @@ export class BatchProcessor<T, R = any> {
       const successCount = result.successful.length;
       const failedCount = result.failed.length;
 
-      if (failedCount === 0) {
+      if (quotaExceeded) {
+        this.spinner.warn(`⏸️  處理暫停（配額用盡）: 成功 ${successCount}, 失敗 ${failedCount}, 總計 ${items.length}`);
+      } else if (failedCount === 0) {
         this.spinner.succeed(`✅ 完成處理 ${successCount}/${items.length} 項目`);
       } else {
         this.spinner.succeed(`✅ 處理完成: 成功 ${successCount}, 失敗 ${failedCount}, 總計 ${items.length}`);

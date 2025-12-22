@@ -55,6 +55,11 @@ npm run list-stocks -- --export json
 
 - `npm run fetch-all`：一次抓取所有因子與價格資料。現在會自動檢查並更新股票清單，然後為所有股票抓取資料。
 
+**🔄 進度追蹤與斷點續傳**
+- 自動記錄抓取進度，當 FinMind API 配額用盡時會暫停並儲存進度
+- 下次執行時會自動從上次中斷的地方繼續
+- 進度檔案儲存於 `data/progress_fetch-all.json`
+
 支援參數：
 - `--market` (或 `-m`)：指定市場類型
   - `tse`：僅抓取上市股票
@@ -63,10 +68,19 @@ npm run list-stocks -- --export json
   - `all`：抓取所有股票（預設值）
 - `--stocks` (或 `-s`)：指定特定股票代碼，以逗號分隔
 - `--exclude` (或 `-e`)：排除特定股票代碼，以逗號分隔
+- `--resume` (或 `-r`)：從上次進度繼續（預設啟用）
+- `--no-resume`：忽略上次進度，從頭開始
+- `--clear-progress`：清除所有進度記錄後重新開始
 
 ```bash
-# 抓取所有股票資料
+# 抓取所有股票資料（會自動從進度繼續）
 npm run fetch-all
+
+# 忽略進度，從頭開始抓取
+npm run fetch-all -- --no-resume
+
+# 清除進度記錄後重新開始
+npm run fetch-all -- --clear-progress
 
 # 只抓取上市股票
 npm run fetch-all -- --market tse
@@ -82,7 +96,16 @@ npm run fetch-all -- --market tse --exclude 2330
 
 # 抓取多支指定股票（上市 + 上櫃）
 npm run fetch-all -- --stocks 2330,2317,5274,6488
+
+# 配額用盡後，隔天繼續抓取
+npm run fetch-all  # 自動檢測並從進度繼續
 ```
+
+**💡 配額管理建議**
+- FinMind 免費帳號每日有 API 請求限制
+- 當配額用盡時，程式會自動暫停並記錄進度
+- 建議每天執行一次，逐步完成所有股票的資料更新
+- 如需完整抓取大量股票，建議考慮 FinMind 付費方案
 
 - `npm run fetch-valuation`：抓取本益比、股價淨值比等估值資料，可使用 `--date`、`--stocks` 等參數。
 

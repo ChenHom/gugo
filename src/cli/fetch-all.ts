@@ -8,6 +8,7 @@ import { StockListService } from '../services/stockListService.js';
 import { ErrorHandler } from '../utils/errorHandler.js';
 import { setupCliSignalHandler } from '../utils/signalHandler.js';
 import { processStocks, BatchProcessor } from '../utils/batchProcessor.js';
+import { ProgressTracker, isQuotaExceededError } from '../utils/progressTracker.js';
 import ora from 'ora';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -16,6 +17,7 @@ interface FetchAllOptions {
   market?: string;
   stocks?: string;
   exclude?: string;
+  resume?: boolean;
 }
 
 export async function run(options: FetchAllOptions = {}): Promise<void> {
@@ -87,6 +89,19 @@ export async function run(options: FetchAllOptions = {}): Promise<void> {
   }
 
   console.log(`📊 將抓取 ${stockCodes.length} 支股票的資料`);
+
+  // 初始化進度追蹤器
+  const progressTracker = new ProgressTracker('fetch-all');
+  
+  // 顯示進度摘要
+  if (options.resume !== false) {
+    const summary = await progressTracker.getProgressSummary();
+    if (summary.length > 0) {
+      console.log('\n📊 上次執行進度：');
+      summary.forEach(line => console.log(`  ${line}`));
+      console.log('');
+    }
+  }
 
   // 初始化 fetchers
   const valuation = new ValuationFetcher();
@@ -162,35 +177,65 @@ export async function run(options: FetchAllOptions = {}): Promise<void> {
   ];
 
   // 依序執行各類型的資料抓取
+  let quotaExceeded = false;
+  
   for (const task of fetchTasks) {
+    if (quotaExceeded) {
+      console.log(`⏭️  跳過 ${task.name}（因配額已用盡）`);
+      continue;
+    }
+
     console.log(`\n🔄 開始抓取 ${task.name} 資料...`);
 
-    const result = await processStocks(stockCodes, task.process, {
+    // 初始化任務進度
+    await progressTracker.initTask(task.name, stockCodes);
+    
+    // 取得尚未處理的股票列表
+    const remainingStocks = await progressTracker.getRemainingStocks(task.name, stockCodes);
+    
+    if (remainingStocks.length === 0) {
+      console.log(`✅ ${task.name} 已全部完成，跳過`);
+      continue;
+    }
+
+    const result = await processStocks(remainingStocks, task.process, {
       progressPrefix: `抓取 ${task.name}`,
       concurrency: 3,
       maxRetries: 2,
       skipOnError: true,
       showProgress: true,
-      onError: (stockCode, error, retryCount) => {
-        // 特別處理 402 錯誤
-        if (error.message.includes('402 Payment Required')) {
-          console.log(`⚠️  ${stockCode} - FinMind API 配額不足，跳過此股票`);
+      onError: async (stockCode, error, retryCount) => {
+        // 檢測配額錯誤
+        if (isQuotaExceededError(error)) {
+          console.log(`\n⚠️  ${stockCode} - FinMind API 配額已用盡`);
+          await progressTracker.markQuotaExceeded(task.name);
+          quotaExceeded = true;
+          
+          // 停止處理更多股票
+          throw new Error('QUOTA_EXCEEDED');
         } else {
           console.log(`❌ ${stockCode} ${task.name} 抓取失敗: ${error.message} (重試 ${retryCount} 次)`);
         }
+        
+        // 更新進度
+        await progressTracker.updateTask(task.name, stockCode, false, error.message);
+      },
+      onSuccess: async (stockCode) => {
+        // 更新進度
+        await progressTracker.updateTask(task.name, stockCode, true);
       }
     });
 
     // 顯示結果摘要
     if (result.failed.length > 0 || result.successful.length > 0) {
       console.log(`\n📊 ${task.name} 抓取結果:`);
-      console.log(`✅ 成功: ${result.successful.length}/${stockCodes.length} 支股票`);
+      console.log(`✅ 成功: ${result.successful.length}/${remainingStocks.length} 支股票`);
       if (result.failed.length > 0) {
         console.log(`❌ 失敗: ${result.failed.length} 支股票`);
 
         // 分析失敗原因
         const paymentRequiredCount = result.failed.filter(f =>
-          f.error.message.includes('402 Payment Required')
+          isQuotaExceededError(f.error)
         ).length;
 
         if (paymentRequiredCount > 0) {
@@ -198,12 +243,28 @@ export async function run(options: FetchAllOptions = {}): Promise<void> {
         }
       }
     }
+
+    // 如果配額用盡，停止後續任務
+    if (quotaExceeded) {
+      console.log(`\n⏸️  因 FinMind API 配額用盡，已暫停執行`);
+      console.log(`💡 請於明日重新執行此指令，將自動從進度繼續`);
+      break;
+    }
   }
 
   // 關閉股票清單服務
   stockListService.close();
 
-  console.log('\n🎉 所有資料抓取作業完成！');
+  if (quotaExceeded) {
+    console.log('\n⏸️  資料抓取因配額用盡而暫停');
+    console.log('💡 明日重新執行將自動從進度繼續');
+  } else {
+    console.log('\n🎉 所有資料抓取作業完成！');
+    // 清除進度記錄
+    if (options.resume !== false) {
+      await progressTracker.clearAll();
+    }
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -225,17 +286,38 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       type: 'string',
       description: '排除特定股票代碼，以逗號分隔'
     })
+    .option('resume', {
+      alias: 'r',
+      type: 'boolean',
+      description: '從上次中斷的進度繼續（預設啟用）',
+      default: true
+    })
+    .option('clear-progress', {
+      type: 'boolean',
+      description: '清除所有進度記錄後重新開始',
+      default: false
+    })
     .example('$0', '抓取所有股票資料')
     .example('$0 --market tse', '只抓取上市股票')
     .example('$0 --market otc', '只抓取上櫃股票')
     .example('$0 --stocks 2330,2317', '只抓取指定股票')
     .example('$0 --market tse --exclude 2330', '抓取上市股票但排除台積電')
+    .example('$0 --no-resume', '忽略上次進度，從頭開始')
+    .example('$0 --clear-progress', '清除進度記錄後重新開始')
     .help()
     .argv;
+
+  // 如果指定清除進度，先清除後再執行
+  if (argv['clear-progress']) {
+    const tracker = new ProgressTracker('fetch-all');
+    await tracker.clearAll();
+    console.log('✅ 已清除所有進度記錄\n');
+  }
 
   await run({
     market: argv.market,
     stocks: argv.stocks,
-    exclude: argv.exclude
+    exclude: argv.exclude,
+    resume: argv.resume
   });
 }
