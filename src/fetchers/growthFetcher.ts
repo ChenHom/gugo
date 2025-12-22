@@ -411,7 +411,7 @@ export class GrowthFetcher {
         }
       }
 
-      console.log(`✅ EPS 資料處理完成，共 ${allEpsData.length} 筆記錄`);
+      // console.log(`✅ EPS 資料處理完成，共 ${allEpsData.length} 筆記錄`);
       return { success: true, data: allEpsData };
     } catch (error) {
       return {
