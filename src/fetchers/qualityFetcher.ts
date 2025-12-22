@@ -1,6 +1,7 @@
 import { FinMindClient, BalanceSheetData, FinancialStatementsData } from '../utils/finmindClient.js';
 import { TWSeApiClient } from '../utils/twseApiClient.js';
 import { DataFetchStrategy } from '../utils/dataFetchStrategy.js';
+import { QuotaExceededError } from '../utils/errors.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -103,8 +104,9 @@ export class QualityFetcher {
         // 目前 TWSE API 不直接提供財務報表，所以我們可能需要額外的實作
         // 這裡可以添加將來 TWSE 財務資料的直接獲取方法
         // 先試試是否有這個方法的實作
-        const twseFinancialData = await this.twseClient.getFinancialStatements?.(stockId, startDate, endDate);
-        const twseBalanceData = await this.twseClient.getBalanceSheet?.(stockId, startDate, endDate);
+        const twseClient = this.twseClient as any;
+        const twseFinancialData = await twseClient.getFinancialStatements?.(stockId, startDate, endDate);
+        const twseBalanceData = await twseClient.getBalanceSheet?.(stockId, startDate, endDate);
 
         if (twseFinancialData && twseFinancialData.length > 0) {
           console.log(`✅ 成功從 TWSE 獲取 ${stockId} 財務報表: ${twseFinancialData.length} 筆`);
@@ -132,6 +134,11 @@ export class QualityFetcher {
             console.warn(`⚠️ FinMind 未返回 ${stockId} 的財務報表資料`);
           }
         } catch (finMindError) {
+          // 檢查是否為配額錯誤
+          if (finMindError instanceof Error && finMindError.message.includes('402 Payment Required')) {
+            const dataset = finMindError.message.match(/for (\w+)/)?.[1];
+            throw new QuotaExceededError('FinMind', dataset);
+          }
           console.error(`❌ FinMind 財務報表獲取失敗: ${finMindError instanceof Error ? finMindError.message : finMindError}`);
           // 不拋出錯誤，繼續處理
         }
@@ -149,6 +156,11 @@ export class QualityFetcher {
             console.warn(`⚠️ FinMind 未返回 ${stockId} 的資產負債表資料`);
           }
         } catch (finMindError) {
+          // 檢查是否為配額錯誤
+          if (finMindError instanceof Error && finMindError.message.includes('402 Payment Required')) {
+            const dataset = finMindError.message.match(/for (\w+)/)?.[1];
+            throw new QuotaExceededError('FinMind', dataset);
+          }
           console.error(`❌ FinMind 資產負債表獲取失敗: ${finMindError instanceof Error ? finMindError.message : finMindError}`);
           // 不拋出錯誤，繼續處理
         }
@@ -167,7 +179,7 @@ export class QualityFetcher {
           return [
             {
               stock_id: stockId,
-              date: today,
+              date: today as string,
               roe: 15 + Math.random() * 5,
               roa: 8 + Math.random() * 3,
               gross_margin: 35 + Math.random() * 10,

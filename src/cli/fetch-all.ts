@@ -9,14 +9,15 @@ import { ErrorHandler } from '../utils/errorHandler.js';
 import { setupCliSignalHandler } from '../utils/signalHandler.js';
 import { processStocks, BatchProcessor } from '../utils/batchProcessor.js';
 import { ProgressTracker, isQuotaExceededError } from '../utils/progressTracker.js';
+import { QuotaExceededError, isQuotaError } from '../utils/errors.js';
 import ora from 'ora';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 interface FetchAllOptions {
   market?: string;
-  stocks?: string;
-  exclude?: string;
+  stocks?: string | undefined;
+  exclude?: string | undefined;
   resume?: boolean;
 }
 
@@ -137,14 +138,34 @@ export async function run(options: FetchAllOptions = {}): Promise<void> {
       fetcher: growth,
       process: async (stockCode: string): Promise<any> => {
         await growth.initialize();
-        await growth.fetchRevenueData({
+        
+        // 先抓取營收資料
+        const revenueResult = await growth.fetchRevenueData({
           stockNos: [stockCode],
           useCache: true
         });
-        return await growth.fetchEpsData({
+        
+        // 檢查營收資料是否因配額錯誤失敗
+        if (revenueResult && !revenueResult.success && revenueResult.error) {
+          if (isQuotaExceededError(new Error(revenueResult.error))) {
+            throw new Error(revenueResult.error);
+          }
+        }
+        
+        // 再抓取 EPS 資料
+        const epsResult = await growth.fetchEpsData({
           stockNos: [stockCode],
           useCache: true
         });
+        
+        // 檢查 EPS 資料是否因配額錯誤失敗
+        if (epsResult && !epsResult.success && epsResult.error) {
+          if (isQuotaExceededError(new Error(epsResult.error))) {
+            throw new Error(epsResult.error);
+          }
+        }
+        
+        return epsResult;
       }
     },
     {
@@ -205,14 +226,14 @@ export async function run(options: FetchAllOptions = {}): Promise<void> {
       skipOnError: true,
       showProgress: true,
       onError: async (stockCode, error, retryCount) => {
-        // 檢測配額錯誤
-        if (isQuotaExceededError(error)) {
+        // 檢測配額錯誤 - 使用優雅的處理方式
+        if (isQuotaError(error) || isQuotaExceededError(error)) {
           console.log(`\n⚠️  ${stockCode} - FinMind API 配額已用盡`);
           await progressTracker.markQuotaExceeded(task.name);
           quotaExceeded = true;
           
-          // 停止處理更多股票
-          throw new Error('QUOTA_EXCEEDED');
+          // 停止處理更多股票 - 使用自定義錯誤避免 stack trace
+          throw new QuotaExceededError('FinMind', task.name);
         } else {
           console.log(`❌ ${stockCode} ${task.name} 抓取失敗: ${error.message} (重試 ${retryCount} 次)`);
         }
@@ -316,8 +337,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   await run({
     market: argv.market,
-    stocks: argv.stocks,
-    exclude: argv.exclude,
+    stocks: argv.stocks ?? undefined,
+    exclude: argv.exclude ?? undefined,
     resume: argv.resume
   });
 }

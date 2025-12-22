@@ -1,7 +1,7 @@
 
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { downloadMopsPdf } from '../fetchers/mopsFetcher';
+import { downloadMopsPdf } from '../fetchers/mopsFetcher.js';
 
 async function main() {
   const argv = await yargs(hideBin(process.argv))

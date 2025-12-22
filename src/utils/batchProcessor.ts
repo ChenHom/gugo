@@ -5,6 +5,7 @@
 
 import ora from 'ora';
 import { ErrorHandler } from './errorHandler.js';
+import { QuotaExceededError, isQuotaError } from './errors.js';
 
 export interface BatchOptions<T> {
   /** 批次大小 */
@@ -127,13 +128,13 @@ export class BatchProcessor<T, R = any> {
               await this.options.onError(item, error, retryCount);
               
               // 檢查是否為配額錯誤
-              if (error.message === 'QUOTA_EXCEEDED') {
+              if (error instanceof QuotaExceededError || error.message === 'QUOTA_EXCEEDED') {
                 quotaExceeded = true;
                 break; // 跳出當前批次
               }
             } catch (callbackError) {
-              // 如果 onError 拋出 QUOTA_EXCEEDED，也要停止
-              if ((callbackError as Error).message === 'QUOTA_EXCEEDED') {
+              // 如果 onError 拋出配額錯誤，也要停止
+              if (callbackError instanceof QuotaExceededError || (callbackError as Error).message === 'QUOTA_EXCEEDED') {
                 quotaExceeded = true;
                 break;
               }
@@ -196,9 +197,11 @@ export class BatchProcessor<T, R = any> {
         lastError = error as Error;
         retryCount = attempt;
 
-        // 記錄錯誤
-        const itemDesc = itemDescription ? itemDescription(item) : String(item);
-        await ErrorHandler.logError(lastError, `batch-processor:${itemDesc}`);
+        // 記錄錯誤（跳過配額錯誤，避免顯示 stack trace）
+        if (!isQuotaError(lastError)) {
+          const itemDesc = itemDescription ? itemDescription(item) : String(item);
+          await ErrorHandler.logError(lastError, `batch-processor:${itemDesc}`);
+        }
 
         // 如果不是最後一次嘗試，等待後重試
         if (attempt < this.options.maxRetries) {

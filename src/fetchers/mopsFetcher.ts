@@ -60,6 +60,10 @@ export async function downloadMopsPdf(stockNo: string, year: string): Promise<st
     // 6. Download the PDF
     const pdfPage = await browser.newPage();
     const response = await pdfPage.goto(reportUrl, { waitUntil: 'networkidle2' });
+    if (!response) {
+      console.error('Failed to load PDF page');
+      return null;
+    }
     const pdfBuffer = await response.buffer();
 
     // 7. Save the PDF to a file
@@ -76,7 +80,8 @@ export async function downloadMopsPdf(stockNo: string, year: string): Promise<st
     if (browser) {
       const page = (await browser.pages())[0];
       if (page) {
-        await page.screenshot({ path: path.join(DOWNLOAD_DIR, 'mops-error.png') });
+        const errorScreenshot = path.join(DOWNLOAD_DIR, 'mops-error.png') as `${string}.png`;
+        await page.screenshot({ path: errorScreenshot });
         console.log('Screenshot saved to downloads/mops-error.png');
       }
     }

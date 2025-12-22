@@ -352,9 +352,14 @@ export class TWSeApiClient {
         // 轉換日期格式: 如果日期格式為 "112/01/01" (民國年)，轉換為西元年 "2023-01-01"
         let dateStr = item.日期 as string || '';
         if (dateStr.includes('/')) {
-          const [rocYear, month, day] = dateStr.split('/');
-          const year = parseInt(rocYear) + 1911;
-          dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          const parts = dateStr.split('/');
+          const rocYear = parts[0];
+          const month = parts[1];
+          const day = parts[2];
+          if (rocYear && month && day) {
+            const year = parseInt(rocYear) + 1911;
+            dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
         }
 
         const stock_id = item.股票代號 as string || '';

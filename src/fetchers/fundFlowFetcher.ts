@@ -1,5 +1,6 @@
 import { FinMindClient, InstitutionalInvestorsData } from '../utils/finmindClient.js';
 import { TWSeApiClient } from '../utils/twseApiClient.js';
+import { QuotaExceededError } from '../utils/errors.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -138,9 +139,8 @@ export class FundFlowFetcher {
     } catch (error) {
       // 檢查是否為付費方案限制
       if (error instanceof Error && error.message.includes('402 Payment Required')) {
-        console.error(`❌ ${stockId}: FinMind API 需要付費方案，已達免費額度限制`);
-        console.log(`💡 建議: 申請 FinMind 付費方案或等待額度重置`);
-        return [];
+        const dataset = error.message.match(/for (\w+)/)?.[1];
+        throw new QuotaExceededError('FinMind', dataset);
       }
 
       // 區分不同類型的錯誤給出友善提示

@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { QuotaExceededError } from './errors.js';
 
 export class ErrorHandler {
   private static logDir = 'logs';
@@ -13,6 +14,11 @@ export class ErrorHandler {
   }
 
   static async logError(error: Error, context?: string): Promise<void> {
+    // 跳過配額錯誤的詳細記錄（這是預期中的情況）
+    if (error instanceof QuotaExceededError) {
+      return;
+    }
+    
     const timestamp = new Date().toISOString();
     const logEntry = {
       timestamp,

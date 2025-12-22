@@ -1,6 +1,7 @@
 import { FinMindClient } from '../utils/finmindClient.js';
 import { TWSeApiClient } from '../utils/twseApiClient.js';
 import { DataFetchStrategy } from '../utils/dataFetchStrategy.js';
+import { QuotaExceededError } from '../utils/errors.js';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -143,10 +144,10 @@ export class PriceFetcher {
           }
         } catch (finMindError) {
           if (finMindError instanceof Error && finMindError.message.includes('402 Payment Required')) {
-            console.error(`❌ FinMind API 需要付費方案，已達免費額度限制`);
-          } else {
-            console.error(`❌ FinMind 股價資料獲取失敗: ${finMindError instanceof Error ? finMindError.message : finMindError}`);
+            const dataset = finMindError.message.match(/for (\w+)/)?.[1];
+            throw new QuotaExceededError('FinMind', dataset);
           }
+          console.error(`❌ FinMind 股價資料獲取失敗: ${finMindError instanceof Error ? finMindError.message : finMindError}`);
         }
       }
 
@@ -266,7 +267,8 @@ export class PriceFetcher {
           }
         } catch (finMindError) {
           if (finMindError instanceof Error && finMindError.message.includes('402 Payment Required')) {
-            console.error(`❌ FinMind API 需要付費方案，已達免費額度限制`);
+            const dataset = finMindError.message.match(/for (\w+)/)?.[1];
+            throw new QuotaExceededError('FinMind', dataset);
           } else {
             console.error(`❌ FinMind 估值資料獲取失敗: ${finMindError instanceof Error ? finMindError.message : finMindError}`);
           }
@@ -315,9 +317,10 @@ export class PriceFetcher {
 
       // 在測試環境中返回模擬資料
       if (process.env.NODE_ENV === 'test') {
+        const today = new Date().toISOString().split('T')[0];
         return [{
           stock_id: stockId,
-          date: new Date().toISOString().split('T')[0],
+          date: today as string,
           per: 15,
           pbr: 2.5,
           dividend_yield: 3.5

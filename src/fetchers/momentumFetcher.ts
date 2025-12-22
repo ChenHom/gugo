@@ -216,9 +216,10 @@ export class MomentumFetcher {
       console.error('❌ 動能資料抓取失敗:', error);
 
       // 即使發生錯誤，也返回與輸入股票數量相等的結果陣列
+      const today = new Date().toISOString().split('T')[0];
       return stockIds.map(stockId => ({
         stock_no: stockId,
-        date: new Date().toISOString().split('T')[0]
+        date: today as string
       }));
     }
   }

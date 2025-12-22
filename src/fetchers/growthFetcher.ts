@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import pLimit from 'p-limit';
+import { QuotaExceededError } from '../utils/errors.js';
 
 export interface GrowthMetrics {
   stock_id: string;
@@ -108,7 +109,7 @@ export class GrowthFetcher {
 
       const revenueData = await this.finmindClient.getMonthlyRevenue(
         stockId, 
-        finmindStartDate, 
+        finmindStartDate as string, 
         endDate
       );
 
@@ -131,15 +132,15 @@ export class GrowthFetcher {
       // 儲存到資料庫
       await this.saveGrowthMetrics(filteredMetrics);
 
-      console.log(`✅ 成功獲取 ${filteredMetrics.length} 期營收成長資料`);
+      // console.log(`✅ 成功獲取 ${filteredMetrics.length} 期營收成長資料`);
       return filteredMetrics;
 
     } catch (error) {
-      // 檢查是否為付費方案限制
+      // 檢查是否為付費方案限制 - 直接拋出讓上層處理
       if (error instanceof Error && error.message.includes('402 Payment Required')) {
-        console.error(`❌ ${stockId}: FinMind API 需要付費方案，已達免費額度限制`);
-        console.log(`💡 建議: 申請 FinMind 付費方案或等待額度重置`);
-        return [];
+        // 使用自定義錯誤，避免顯示完整 stack trace
+        const dataset = error.message.match(/for (\w+)/)?.[1];
+        throw new QuotaExceededError('FinMind', dataset);
       }
 
       // 區分不同類型的錯誤給出友善提示
@@ -340,6 +341,14 @@ export class GrowthFetcher {
               const metrics = await this.fetchRevenueGrowth(stockId, startDate, endDate);
               allData.push(...metrics);
             } catch (error) {
+              // 檢查是否為配額錯誤，如果是則拋出讓上層處理
+              if (error instanceof QuotaExceededError) {
+                throw error;
+              }
+              if (error instanceof Error && error.message.includes('402 Payment Required')) {
+                const dataset = error.message.match(/for (\w+)/)?.[1];
+                throw new QuotaExceededError('FinMind', dataset);
+              }
               console.error(`❌ 抓取 ${stockId} 失敗:`, error);
             }
           })
@@ -390,6 +399,14 @@ export class GrowthFetcher {
           await this.saveGrowthMetrics(epsMetrics);
 
         } catch (error) {
+          // 檢查是否為配額錯誤，如果是則拋出讓上層處理
+          if (error instanceof QuotaExceededError) {
+            throw error;
+          }
+          if (error instanceof Error && error.message.includes('402 Payment Required')) {
+            const dataset = error.message.match(/for (\w+)/)?.[1];
+            throw new QuotaExceededError('FinMind', dataset);
+          }
           console.warn(`⚠️  ${stockNo} EPS 資料獲取失敗:`, error instanceof Error ? error.message : String(error));
         }
       }
