@@ -268,7 +268,7 @@ RATE_LIMIT = {
    ```
 
 4. **使用注意事項**:
-   - 免費版本有速率限制：30 requests/分鐘
+   - 免費版本有速率限制：600 requests/小時
    - 建議使用環境變數以避免 Token 洩露
    - Token 會自動從環境變數 `FINMIND_TOKEN` 讀取
 
