@@ -22,7 +22,7 @@ description: "Task list template for feature implementation"
 - [ ] **ESM**: Use `.js` extensions for all local imports
 - [ ] **Testing**: Maintain ≥90% coverage for core logic
 - [ ] **CLI**: Document in `docs/cli_usage.md`; use `setupCliSignalHandler` and `processItems`
-- [ ] **Data**: Use `CacheManager`, handle `QuotaExceededError`, and implement TWSE fallback
+- [ ] **Data**: Use `CacheManager`, handle `QuotaExceededError`, implement TWSE fallback, and use `DatabaseManager`/`ProgressTracker`
 - [ ] **Naming**: PascalCase (types), camelCase (vars), ALL_CAPS (consts), snake_case (DB)
 
 ## Path Conventions

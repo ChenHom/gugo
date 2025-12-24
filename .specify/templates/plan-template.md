@@ -32,9 +32,9 @@
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 1. **ESM Compliance**: Does the design use ES modules and `.js` extensions for all local imports?
-2. **Scoring Integrity**: If modifying scoring, does it adhere to the 40/25/15/10/10 weight distribution and z-score normalization?
+2. **Scoring Integrity**: If modifying scoring, does it adhere to the 40/25/15/10/10 weight distribution, z-score normalization, and Quality Factor formulas (ROE, Margins, etc.)?
 3. **CLI Consistency**: Is the feature exposed via a CLI command documented in `docs/cli_usage.md`? Does it use `setupCliSignalHandler` and `processItems`?
-4. **Data Handling**: Does it use `CacheManager` for 24h TTL, handle `QuotaExceededError`, and provide a TWSE fallback for FinMind?
+4. **Data Handling**: Does it use `CacheManager` for 24h TTL, handle `QuotaExceededError`, provide a TWSE fallback for FinMind, and use `DatabaseManager` and `ProgressTracker`?
 5. **Testing Standards**: Does the plan include Vitest tests with a goal of ≥90% coverage for core logic?
 6. **Naming Conventions**: Does the design follow PascalCase (types), camelCase (vars), ALL_CAPS (consts), and snake_case (DB)?
 
