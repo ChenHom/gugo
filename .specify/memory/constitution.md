@@ -1,50 +1,72 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: 1.0.0 -> 1.1.0
+- List of modified principles:
+  - Refined Principle II (Scoring) with specific weights.
+  - Expanded Principle III (CLI) to include Signal Handling and Batch Processing.
+  - Expanded Principle IV (Data) to include FinMind Fallback and 402 error handling.
+- Added sections: Naming Conventions, Error Handling Patterns.
+- Templates requiring updates:
+  - .specify/templates/plan-template.md (✅ updated with new gates)
+  - .specify/templates/tasks-template.md (✅ updated with new checklist items)
+- Follow-up TODOs: None.
+-->
+
+# Taiwan Stock Screener Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. ESM-First Architecture
+All code must use ES modules (ESM). `import` statements are mandatory; `require()` is forbidden. Local imports must include the `.js` extension. Use `import.meta.url` for path resolution. This ensures compatibility with Node 22 and modern TypeScript standards.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Multi-Factor Scoring Discipline
+Scoring follows a strict weight distribution:
+- **Valuation (40%)**: PER, PBR, Dividend Yield.
+- **Growth (25%)**: Monthly Revenue YoY & MoM, EPS QoQ.
+- **Quality (15%)**: ROE, Gross Margin, Operating Margin.
+- **Fund-flow (10%)**: Foreign/Institutional/Dealer net buy (5d).
+- **Momentum (10%)**: 52-week RS%, MA20 > MA60 running days.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+Each factor is normalized using z-scores or percentiles (0-100). Missing metrics must be explicitly tracked and reported in the `missing` field of the score result.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### III. CLI-First Interface & UX
+All core functionality must be exposed via CLI commands using `yargs`.
+- **Signal Handling**: Use `setupCliSignalHandler` for graceful exits (SIGINT/SIGTERM).
+- **Batch Processing**: Use `processItems` for robust batch operations with retry and error skipping.
+- **Feedback**: Provide visual feedback via `ora` spinners and clear success/failure statistics.
+- **Documentation**: Command documentation resides exclusively in `docs/cli_usage.md`.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### IV. Data Integrity, Caching & Fallbacks
+- **Caching**: External API calls must be cached for 24 hours using `CacheManager`.
+- **Quota Management**: Detect FinMind `402 Payment Required` errors and provide friendly user guidance.
+- **Fallback Mechanism**: Use TWSE OpenAPI as a fallback for FinMind when quotas are exhausted.
+- **Progress Tracking**: Long-running operations must support resume via `data/progress_fetch-all.json`.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### V. Testing & Coverage Standards
+Vitest is the mandatory testing framework. Core services (backtest, portfolioBuilder, scoringEngine) must maintain ≥90% coverage. Tests must be organized into unit, integration, and e2e directories with `.test.ts` suffixes. Mocking external APIs is mandatory in unit tests.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+## Naming Conventions
+- **PascalCase**: Component names, interfaces, and type aliases.
+- **camelCase**: Variables, functions, and methods.
+- **ALL_CAPS**: Constants.
+- **snake_case**: Database columns.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Error Handling Patterns
+- Use `try/catch` blocks for all async operations.
+- Always log errors with contextual information.
+- Use `QuotaExceededError` for API limit handling.
+- Single item failures in batch processing should not crash the entire process.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Technical Constraints
+- **Runtime**: Node.js 22+ (ESM).
+- **Database**: SQLite via `better-sqlite3` (Native).
+- **HTTP**: `node-fetch` (v3 ESM) with retries and back-off.
+- **Linting**: ESLint + Prettier with `"strict": true`.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+- The Constitution is the source of truth for project standards and supersedes all other practices.
+- Amendments require a version bump (Semantic Versioning) and a Sync Impact Report.
+- All implementation plans and tasks must be validated against these principles.
+- Compliance is reviewed during code reviews and automated via linting/testing gates.
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.1.0 | **Ratified**: 2025-12-22 | **Last Amended**: 2025-12-25

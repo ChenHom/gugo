@@ -18,6 +18,13 @@ description: "Task list template for feature implementation"
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
 
+### Principle Compliance Checklist (Mandatory for all tasks)
+- [ ] **ESM**: Use `.js` extensions for all local imports
+- [ ] **Testing**: Maintain ≥90% coverage for core logic
+- [ ] **CLI**: Document in `docs/cli_usage.md`; use `setupCliSignalHandler` and `processItems`
+- [ ] **Data**: Use `CacheManager`, handle `QuotaExceededError`, and implement TWSE fallback
+- [ ] **Naming**: PascalCase (types), camelCase (vars), ALL_CAPS (consts), snake_case (DB)
+
 ## Path Conventions
 
 - **Single project**: `src/`, `tests/` at repository root
